@@ -4,7 +4,8 @@ Sandbox Game
 Dev: Nico Carlson
 
 inspiration: https://www.youtube.com/watch?v=5Ka3tbbT-9E
-i did my best not to COPY anything from this (:
+and : https://www.youtube.com/watch?v=VLZjd_Y1gJ8
+i did my best not to copy anything from these (:
  */
 package sandbox_game;
 
@@ -24,19 +25,23 @@ import javax.swing.Timer;
 
 public class Sandbox_Game extends JPanel {
 
+    public enum Element {
+        EMPTY, SAND, WATER, LAVA, OBSIDIAN, STEAM
+    }
+
     // main variable initializing
-    public static int cellSize = 10;
+    public static int cellSize = 5;
     public static int width = 900;
     public static int height = 700;
     public static int cols = width / cellSize;
     public static int rows = height / cellSize;
 
     // array for the grid
-    public static int[][] grid;
-
+    public static Element[][] grid;
+    
     // setting timer
     public static Timer timer;
-    
+
     // pause state
     public static boolean isPaused = false;
 
@@ -52,17 +57,17 @@ public class Sandbox_Game extends JPanel {
     public int currentMouseY = 0;
 
     // brush size
-    public static int brushSize = 1;
+    public static int brushSize = 6;
 
     // button variables
     public static int bttnx = 25;
     public static int bttny = 25;
-    public static int bttnWidth = 75;
+    public static int bttnWidth = 100;
     public static int bttnHeight = 30;
     public static int bttnSpacing = 25;
 
     // selected element
-    public static int currentElement = 1; // default for sand
+    public static Element currentElement = Element.SAND; // default for sand
 
     // constructor
     public Sandbox_Game() {
@@ -104,7 +109,12 @@ public class Sandbox_Game extends JPanel {
         this.addMouseMotionListener(mouseHandler);
 
         // setup the grid
-        grid = new int[cols][rows];
+        grid = new Element[cols][rows];
+        for (int c = 0; c < cols; c++) {
+            for (int r = 0; r < rows; r++) {
+                grid[c][r] = Element.EMPTY;
+            }
+        }
 
         // setting the timer (16 is about 60 fps
         timer = new Timer(16, e -> {
@@ -113,9 +123,9 @@ public class Sandbox_Game extends JPanel {
             if (isMouseHeld) {
                 spawnElement(currentMouseX, currentMouseY);
             }
-            
+
             // if not paused
-            if (!isPaused){
+            if (!isPaused) {
                 updatePhysics();
             }
 
@@ -133,24 +143,47 @@ public class Sandbox_Game extends JPanel {
         for (int x = 0; x < cols; x++) {
             for (int y = 0; y < rows; y++) {
 
-                // 0 is empty cell, 1 is sand, 2 is water
-                if (grid[x][y] == 0) {
-                    // yellow for sand
+                // --------- EMPTY ---------
+                if (grid[x][y] == Element.EMPTY) {
                     g.setColor(Color.darkGray);
 
                     g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
 
                 }
-                else if (grid[x][y] == 1) {
+                // --------- SAND --------- 
+                else if (grid[x][y] == Element.SAND) {
                     // yellow for sand
                     g.setColor(new Color(0xC2B280));
 
                     g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
 
                 }
-                else if (grid[x][y] == 2) {
+                // --------- WATER --------- 
+                else if (grid[x][y] == Element.WATER) {
                     // blue for water
                     g.setColor(new Color(0, 191, 255));
+
+                    g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+
+                }
+                // --------- LAVA --------- 
+                else if (grid[x][y] == Element.LAVA) {
+                    // red for water
+                    g.setColor(new Color(0xE42217));
+
+                    g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+
+                }
+                // --------- OBSIDIAN --------- 
+                else if (grid[x][y] == Element.OBSIDIAN) {
+                    g.setColor(new Color(0x382B46));
+
+                    g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+
+                }
+                // --------- STEAM --------- 
+                else if (grid[x][y] == Element.STEAM) {
+                    g.setColor(new Color(0x9E9E9E));
 
                     g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
 
@@ -175,87 +208,93 @@ public class Sandbox_Game extends JPanel {
 
     }   // end of paint compenent
 
-     // physics loop
+    // physics loop
     public void updatePhysics() {
 
         // loop through from the BOTTOM to TOP
         for (int y = rows - 2; y >= 0; y--) {    // -2 to stay in bounds
             for (int x = 0; x < cols; x++) {
 
-                // check for sand
-                if (grid[x][y] == 1) {
+                // -------- check for sand --------
+                if (grid[x][y] == Element.SAND) {
 
                     // RNG for left or right
                     int sandDirection = RNG.nextInt(2);
 
                     // first sand should try and fall straight down
-                    if (grid[x][y + 1] == 0 || grid[x][y + 1] == 2) {
+                    if (grid[x][y + 1] == Element.EMPTY || 
+                        grid[x][y + 1] == Element.WATER || 
+                        grid[x][y + 1] == Element.LAVA) {
                         // set old pos to what is swapped with
-                        int oldPos = grid[x][y + 1];
+                        Element oldPos = grid[x][y + 1];
                         grid[x][y] = oldPos;
                         // set new pos to sand
-                        grid[x][y + 1] = 1;
+                        grid[x][y + 1] = Element.SAND;
                     }
 
                     else if (sandDirection == 0) {
                         // next sand should fall bottom left
-                        if (x > 0 && (grid[x - 1][y + 1] == 0 || grid[x - 1][y + 1] == 2)) {
+                        if (x > 0 && (grid[x - 1][y + 1] == Element.EMPTY || 
+                                      grid[x - 1][y + 1] == Element.WATER ||
+                                      grid[x - 1][y + 1] == Element.LAVA)) {
                             // set old pos to what is swapped with
-                            int oldPos = grid[x - 1][y + 1];
+                            Element oldPos = grid[x - 1][y + 1];
                             grid[x][y] = oldPos;
                             // set new pos to sand
-                            grid[x - 1][y + 1] = 1;
+                            grid[x - 1][y + 1] = Element.SAND;
                         }
                     }
 
                     else if (sandDirection == 1) {
                         // next sand should fall bottom right
-                        if (x < cols - 1 && (grid[x + 1][y + 1] == 0 || grid[x + 1][y + 1] == 2)) {
+                        if (x < cols - 1 && (grid[x + 1][y + 1] == Element.EMPTY ||
+                                             grid[x + 1][y + 1] == Element.WATER ||
+                                             grid[x + 1][y + 1] == Element.LAVA)) {
                             // set old pos to what is swapped with
-                            int oldPos = grid[x + 1][y + 1];
+                            Element oldPos = grid[x + 1][y + 1];
                             grid[x][y] = oldPos;
                             // set new pos to sand
-                            grid[x + 1][y + 1] = 1;
+                            grid[x + 1][y + 1] = Element.SAND;
                         }
                     }
-                }   // end of sand statments     
+                }
+                // -------- end of sand statments --------
 
-                // check for water
-                if (grid[x][y] == 2) {
+                // -------- check for water --------
+                if (grid[x][y] == Element.WATER) {
 
                     // 1 first water should try and fall straight down
-                    if (grid[x][y + 1] == 0) {
+                    if (grid[x][y + 1] == Element.EMPTY) {
                         // set old pos to empty
-                        grid[x][y] = 0;
+                        grid[x][y] = Element.EMPTY;
                         // set new pos to water
-                        grid[x][y + 1] = 2;
+                        grid[x][y + 1] = Element.WATER;
                     }
 
                     // 2 next water should move bottom left
-                    else if (x > 0 && grid[x - 1][y + 1] == 0) {
+                    else if (x > 0 && grid[x - 1][y + 1] == Element.EMPTY) {
                         // set old pos to empty
-                        grid[x][y] = 0;
+                        grid[x][y] = Element.EMPTY;
                         // set new pos to water
-                        grid[x - 1][y + 1] = 2;
+                        grid[x - 1][y + 1] = Element.WATER;
                     }
 
                     // 3 next water should move bottom right
-                    else if (x < cols - 1 && grid[x + 1][y + 1] == 0) {
+                    else if (x < cols - 1 && grid[x + 1][y + 1] == Element.EMPTY) {
                         // set old pos to empty
-                        grid[x][y] = 0;
+                        grid[x][y] = Element.EMPTY;
                         // set new pos to water
-                        grid[x + 1][y + 1] = 2;
+                        grid[x + 1][y + 1] = Element.WATER;
                     }
-
                     // 4 spread left or right (random)
                     else {
 
                         // if there is a water particle directly above pushing down
                         // this should fix the jittery top layer
-//                        boolean underPressure = (y > 0 && grid[x][y - 1] == 2);
+//                        boolean underPressure = (y > 0 && grid[x][y - 1] == Element.WATER);
 //                        if (underPressure) {
                         // set a horizontal flow rate to fix werid clumping
-                        int flowRate = 3;
+                        int flowRate = 5;
 
                         // RNG for left or right
                         int waterDirection = RNG.nextInt(2);
@@ -265,15 +304,15 @@ public class Sandbox_Game extends JPanel {
                             int targetX = x;
 
                             // look for consecutive open spaces to flow
-                            while (targetX > 0 && grid[targetX - 1][y] == 0 && flowRate > 0) {
+                            while (targetX > 0 && grid[targetX - 1][y] == Element.EMPTY && flowRate > 0) {
                                 targetX--;
                                 flowRate--;
                             }
 
                             // if there was space then update the grid
                             if (targetX != x) {
-                                grid[x][y] = 0;
-                                grid[targetX][y] = 2;
+                                grid[x][y] = Element.EMPTY;
+                                grid[targetX][y] = Element.WATER;
                             }
                         }
 
@@ -282,31 +321,184 @@ public class Sandbox_Game extends JPanel {
                             int targetX = x;
 
                             // look for consecutive open spaces to flow
-                            while (targetX < cols - 1 && grid[targetX + 1][y] == 0 && flowRate > 0) {
+                            while (targetX < cols - 1 && grid[targetX + 1][y] == Element.EMPTY && flowRate > 0) {
                                 targetX++;
                                 flowRate--;
                             }
 
                             // if there was space then update the grid
                             if (targetX != x) {
-                                grid[x][y] = 0;
-                                grid[targetX][y] = 2;
+                                grid[x][y] = Element.EMPTY;
+                                grid[targetX][y] = Element.WATER;
 
                                 // shift the main loop's index to the new position 
                                 // to prevent the particle from being evaluated again this frame
                                 x = targetX;
                             }
                         }
-//                        }
+                    }
+                }
+                // -------- end of water statments --------
+
+                // -------- check for lava --------
+                if (grid[x][y] == Element.LAVA) {
+                    
+                    boolean reacted = false;
+
+                    // 1 check four spots for water to make obsidian
+                    if (y < rows-1 && grid[x][y+1] == Element.WATER){
+                        grid[x][y+1] = Element.OBSIDIAN;
+                        grid[x][y] = Element.STEAM;
+                    }
+                    else if (y > 0 && grid[x][y-1] == Element.WATER){
+                        grid[x][y-1] = Element.STEAM;
+                        grid[x][y] = Element.OBSIDIAN;
+                    }
+                    else if (x < cols-1 && grid[x+1][y] == Element.WATER){
+                        grid[x+1][y] = Element.OBSIDIAN;
+                        grid[x][y] = Element.STEAM;
+                    }
+                    else if (x > 0 && grid[x-1][y] == Element.WATER){
+                        grid[x-1][y] = Element.STEAM;
+                        grid[x][y] = Element.OBSIDIAN;
+                    }
+                    
+                    // 2 lavashould try and fall straight down
+                    else if (grid[x][y + 1] == Element.EMPTY) {
+                        grid[x][y] = Element.EMPTY;
+                        grid[x][y + 1] = Element.LAVA;
                     }
 
-                }   // end of water statments     
+                    // 3 spread left or right (random)
+                    else {
+                        // set a horizontal flow rate to fix werid clumping
+                        int flowRate = 1;
+
+                        // RNG for left or right
+                        int lavaDirection = RNG.nextInt(2);
+
+                        // flow left
+                        if (lavaDirection == 0) {
+                            int targetX = x;
+
+                            // look for consecutive open spaces to flow
+                            while (targetX > 0 && grid[targetX - 1][y] == Element.EMPTY && flowRate > 0) {
+                                targetX--;
+                                flowRate--;
+                            }
+
+                            // if there was space then update the grid
+                            if (targetX != x) {
+                                grid[x][y] = Element.EMPTY;
+                                grid[targetX][y] = Element.LAVA;
+                            }
+                        }
+
+                        // flow right
+                        else {
+                            int targetX = x;
+
+                            // look for consecutive open spaces to flow
+                            while (targetX < cols - 1 && grid[targetX + 1][y] == Element.EMPTY && flowRate > 0) {
+                                targetX++;
+                                flowRate--;
+                            }
+
+                            // if there was space then update the grid
+                            if (targetX != x) {
+                                grid[x][y] = Element.EMPTY;
+                                grid[targetX][y] = Element.LAVA;
+
+                                x = targetX;
+                            }
+                        }
+                    }
+
+                }   // ------- end of lava -------
 
             }
         }   // end of grid loop
+        
+        // inverted check for thinks that rise instead of fall
+        for (int y = 1; y < rows; y++) {    // start at 1 to stay in bounds for y-1
+            for (int x = 0; x < cols; x++) {
+
+                // -------- check for steam --------
+                if (grid[x][y] == Element.STEAM) {
+                    
+                    // RNG for rising direction (0 = Left Bias, 1 = Right Bias, 2 = Straight Up)
+                    int driftBias = RNG.nextInt(3);
+
+                    // 1 up-left first
+                    if (driftBias == 0 && x > 0 && 
+                        (grid[x - 1][y - 1] == Element.EMPTY || 
+                         grid[x - 1][y - 1] == Element.WATER || 
+                         grid[x - 1][y - 1] == Element.LAVA)) {
+                        
+                        Element oldPos = grid[x - 1][y - 1];
+                        grid[x][y] = oldPos;
+                        grid[x - 1][y - 1] = Element.STEAM;
+                    }
+                    
+                    // 2 up-right first
+                    else if (driftBias == 1 && x < cols - 1 && 
+                        (grid[x + 1][y - 1] == Element.EMPTY || 
+                         grid[x + 1][y - 1] == Element.WATER || 
+                         grid[x + 1][y - 1] == Element.LAVA)) {
+                        
+                        Element oldPos = grid[x + 1][y - 1];
+                        grid[x][y] = oldPos;
+                        grid[x + 1][y - 1] = Element.STEAM;
+                    }
+                    
+                    // 3 straight up
+                    else if (grid[x][y - 1] == Element.EMPTY || 
+                             grid[x][y - 1] == Element.WATER || 
+                             grid[x][y - 1] == Element.LAVA) {
+                        
+                        Element oldPos = grid[x][y - 1];
+                        grid[x][y] = oldPos;
+                        grid[x][y - 1] = Element.STEAM;
+                    }
+
+                    // 4 spread left or right against ceilings
+                    else {
+                        int flowRate = 4;
+                        int spreadDirection = RNG.nextInt(2);
+
+                        // flow left
+                        if (spreadDirection == 0) {
+                            int targetX = x;
+                            while (targetX > 0 && grid[targetX - 1][y] == Element.EMPTY && flowRate > 0) {
+                                targetX--;
+                                flowRate--;
+                            }
+                            if (targetX != x) {
+                                grid[x][y] = Element.EMPTY;
+                                grid[targetX][y] = Element.STEAM;
+                            }
+                        }
+                        
+                        // flow right
+                        else {
+                            int targetX = x;
+                            while (targetX < cols - 1 && grid[targetX + 1][y] == Element.EMPTY && flowRate > 0) {
+                                targetX++;
+                                flowRate--;
+                            }
+                            if (targetX != x) {
+                                grid[x][y] = Element.EMPTY;
+                                grid[targetX][y] = Element.STEAM;
+                                x = targetX; // prevent loop evaluation duplication
+                            }
+                        }
+                    }
+                } // -------- end of steam statements --------
+            }
+        }
     }   // end of physics loop
 
-    // function to spawn new sand when clicked
+    // function to spawn new element when clicked
     public void spawnElement(int mouseX, int mouseY) {
 
         // convert x and y to grid coords
@@ -362,8 +554,8 @@ public class Sandbox_Game extends JPanel {
 
         // set up the buttons
         // ----------- size -----------
-        JSlider sizeButton = new JSlider(1, 15, 1); // min, max, default
-        sizeButton.setBounds(760, bttny, bttnWidth + 50, bttnHeight + 25);
+        JSlider sizeButton = new JSlider(1, 15, brushSize); // min, max, default
+        sizeButton.setBounds(720, bttny + 100, bttnWidth + 50, bttnHeight + 25);
         sizeButton.setBackground(Color.gray);
         sizeButton.setToolTipText("Size");
 
@@ -377,7 +569,7 @@ public class Sandbox_Game extends JPanel {
         sandButton.setBackground(Color.gray);
 
         // change selected element
-        sandButton.addActionListener(e -> currentElement = 1);
+        sandButton.addActionListener(e -> currentElement = Element.SAND);
 
         elements.add(sandButton);
 
@@ -387,49 +579,79 @@ public class Sandbox_Game extends JPanel {
         waterButton.setBackground(Color.gray);
 
         // change selected element
-        waterButton.addActionListener(e -> currentElement = 2);
+        waterButton.addActionListener(e -> currentElement = Element.WATER);
 
         elements.add(waterButton);
+        
+        // ----------- lava -----------
+        JToggleButton lavaButton = new JToggleButton("Lava");
+        lavaButton.setBounds(bttnx + 2 * bttnSpacing + 2 * bttnWidth, bttny, bttnWidth, bttnHeight);
+        lavaButton.setBackground(Color.gray);
+
+        // change selected element
+        lavaButton.addActionListener(e -> currentElement = Element.LAVA);
+
+        elements.add(lavaButton);
+       
+        // ----------- obsidian -----------
+        JToggleButton obsidianButton = new JToggleButton("Obsidian");
+        obsidianButton.setBounds(bttnx + 3 * bttnSpacing + 3 * bttnWidth, bttny, bttnWidth, bttnHeight);
+        obsidianButton.setBackground(Color.gray);
+
+        // change selected element
+        obsidianButton.addActionListener(e -> currentElement = Element.OBSIDIAN);
+
+        elements.add(obsidianButton);
+        
+        // ----------- steam -----------
+        JToggleButton steamButton = new JToggleButton("Steam");
+        steamButton.setBounds(bttnx + 4 * bttnSpacing + 4 * bttnWidth, bttny, bttnWidth, bttnHeight);
+        steamButton.setBackground(Color.gray);
+
+        // change selected element
+        steamButton.addActionListener(e -> currentElement = Element.STEAM);
+
+        elements.add(steamButton);
 
         // ----------- eraser -----------
         JToggleButton eraserButton = new JToggleButton("Eraser");
-        eraserButton.setBounds(bttnx + 2 * bttnSpacing + 2 * bttnWidth, bttny, bttnWidth, bttnHeight);
+        eraserButton.setBounds(bttnx + 5 * bttnSpacing + 5 * bttnWidth, bttny, bttnWidth, bttnHeight);
         eraserButton.setBackground(Color.gray);
 
         // change selected element
-        eraserButton.addActionListener(e -> currentElement = 0);
+        eraserButton.addActionListener(e -> currentElement = Element.EMPTY);
 
         elements.add(eraserButton);
 
         // ----------- reset -----------
         JButton resetButton = new JButton("Reset");
-        resetButton.setBounds(bttnx + 3 * bttnSpacing + 3 * bttnWidth, bttny, bttnWidth, bttnHeight);
+        resetButton.setBounds(bttnx , bttny + bttnHeight + bttnSpacing, bttnWidth, bttnHeight);
         resetButton.setBackground(Color.gray);
 
         // reset board
         resetButton.addActionListener(e -> {
             for (int c = 0; c < cols; c++) {
                 for (int r = 0; r < rows; r++) {
-                    grid[c][r] = 0;
+                    grid[c][r] = Element.EMPTY;
                 }
             }
 
             frame.repaint();
         });
-        
+
         // ----------- pause -----------
         JButton pauseButton = new JButton("Pause");
-        pauseButton.setBounds(bttnx + 4 * bttnSpacing + 4 * bttnWidth, bttny, bttnWidth, bttnHeight);
+        pauseButton.setBounds(bttnx + bttnWidth + bttnSpacing, bttny + bttnHeight + bttnSpacing, bttnWidth, bttnHeight);
         pauseButton.setBackground(Color.gray);
 
         // pause board
         pauseButton.addActionListener(e -> {
             isPaused = true;
         });
-        
+
         // ----------- resume -----------
         JButton resumeButton = new JButton("Play");
-        resumeButton.setBounds(bttnx + 5 * bttnSpacing + 5 * bttnWidth, bttny, bttnWidth, bttnHeight);
+        resumeButton.setBounds(bttnx + 2 * bttnWidth + 2 * bttnSpacing, bttny + bttnHeight + bttnSpacing, bttnWidth, bttnHeight);
         resumeButton.setBackground(Color.gray);
 
         // resume board
@@ -440,6 +662,9 @@ public class Sandbox_Game extends JPanel {
         // add buttons to panel
         toolBar.add(sandButton);
         toolBar.add(waterButton);
+        toolBar.add(lavaButton);
+        toolBar.add(obsidianButton);
+        toolBar.add(steamButton);
         toolBar.add(eraserButton);
         toolBar.add(sizeButton);
         toolBar.add(resetButton);
