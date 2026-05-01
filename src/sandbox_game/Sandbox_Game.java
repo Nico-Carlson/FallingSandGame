@@ -22,11 +22,13 @@ import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.JToggleButton;
 import javax.swing.Timer;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
 public class Sandbox_Game extends JPanel {
 
     public enum Element {
-        EMPTY, SAND, WATER, LAVA, OBSIDIAN, STEAM
+        EMPTY, SAND, WATER, LAVA, OBSIDIAN, STEAM, SEED, PLANT
     }
 
     // main variable initializing
@@ -47,6 +49,9 @@ public class Sandbox_Game extends JPanel {
 
     // setting rng
     public static Random RNG = new Random();
+    
+    // setting default frameRate
+    public static int frameRate = 16;
 
     // instantiating the frame
     public static JFrame frame = new JFrame("Sandbox Game");
@@ -117,7 +122,7 @@ public class Sandbox_Game extends JPanel {
         }
 
         // setting the timer (16 is about 60 fps
-        timer = new Timer(16, e -> {
+        timer = new Timer(frameRate, e -> {
 
             // if mouse is down spawn element
             if (isMouseHeld) {
@@ -184,6 +189,20 @@ public class Sandbox_Game extends JPanel {
                 // --------- STEAM --------- 
                 else if (grid[x][y] == Element.STEAM) {
                     g.setColor(new Color(0x9E9E9E));
+
+                    g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+
+                }
+                // --------- SEED --------- 
+                else if (grid[x][y] == Element.SEED) {
+                    g.setColor(Color.green.darker());
+
+                    g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+
+                }
+                // --------- PLANT --------- 
+                else if (grid[x][y] == Element.PLANT) {
+                    g.setColor(Color.green.darker().darker());
 
                     g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
 
@@ -415,6 +434,114 @@ public class Sandbox_Game extends JPanel {
                     }
 
                 }   // ------- end of lava -------
+                
+                // -------- check for seed --------
+                if (grid[x][y] == Element.SEED) {
+                    
+                    // RNG for left or right
+                    int seedDirection = RNG.nextInt(2);
+
+                    // first seed should try and fall straight down
+                    if (grid[x][y + 1] == Element.EMPTY) {
+                        // set old pos to what is swapped with
+                        Element oldPos = grid[x][y + 1];
+                        grid[x][y] = oldPos;
+                        // set new pos to seed
+                        grid[x][y + 1] = Element.SEED;
+                    }
+
+                    else if (seedDirection == 0) {
+                        // next seed should fall bottom left
+                        if (x > 0 && grid[x - 1][y + 1] == Element.EMPTY) {
+                            // set old pos to what is swapped with
+                            Element oldPos = grid[x - 1][y + 1];
+                            grid[x][y] = oldPos;
+                            // set new pos to sand
+                            grid[x - 1][y + 1] = Element.SEED;
+                        }
+                    }
+
+                    else if (seedDirection == 1) {
+                        // next seed should fall bottom right
+                        if (x < cols - 1 && grid[x + 1][y + 1] == Element.EMPTY) {
+                            // set old pos to what is swapped with
+                            Element oldPos = grid[x + 1][y + 1];
+                            grid[x][y] = oldPos;
+                            // set new pos to seed
+                            grid[x + 1][y + 1] = Element.SEED;
+                        }
+                    }
+                    
+                    // burn if it touches lava
+                    if (y < rows-1 && y > 0 && x>0 && x<cols-1 &&
+                                        (grid[x][y+1] == Element.LAVA ||
+                                         grid[x][y-1] == Element.LAVA ||
+                                         grid[x-1][y] == Element.LAVA ||
+                                         grid[x+1][y] == Element.LAVA )){
+                        
+//                        grid[x][y-1] = Element.STEAM;
+                        grid[x][y] = Element.STEAM;
+                    }
+                    
+                    // if its touching water
+                    else if (y < rows-1 && grid[x][y+1] == Element.WATER){
+                        // consumes water
+                        grid[x][y+1] = Element.EMPTY;
+                        // creates plant
+                        grid[x][y] = Element.PLANT;
+                    }
+                    else if (y > 0 &&grid[x][y-1] == Element.WATER){
+                        grid[x][y-1] = Element.EMPTY;
+                        grid[x][y] = Element.PLANT;
+                    }
+                    else if (x < cols-1 &&grid[x+1][y] == Element.WATER){
+                        grid[x+1][y] = Element.EMPTY;
+                        grid[x][y] = Element.PLANT;
+                    }
+                    else if (x > 0 &&grid[x-1][y] == Element.WATER){
+                        grid[x-1][y] = Element.EMPTY;
+                        grid[x][y] = Element.PLANT;
+                    }                    
+                }   // ------- end of seed -------
+                
+                // -------- check for plant --------
+                if (grid[x][y] == Element.PLANT) {
+                    
+                    // burn if it touches lava
+                    if (y < rows-1 && y > 0 && x>0 && x<cols-1 &&
+                                        (grid[x][y+1] == Element.LAVA ||
+                                         grid[x][y-1] == Element.LAVA ||
+                                         grid[x-1][y] == Element.LAVA ||
+                                         grid[x+1][y] == Element.LAVA )){
+                        
+//                        grid[x][y-1] = Element.STEAM;
+                        grid[x][y] = Element.STEAM;
+                    }
+                    
+                    int growDirection = RNG.nextInt(3);
+                    int growChance = RNG.nextInt(50);
+                        
+                    if(growChance == 1 && x>0 && x<cols-1&&y>0&&y<rows-1){
+                        if(growDirection == 0 && grid[x-1][y-1] == Element.EMPTY
+                                              && (grid[x-1][y-1] == Element.EMPTY
+                                              && grid[x+1][y-1] == Element.EMPTY)) {
+                            grid[x-1][y-1] = Element.PLANT;   
+                        }
+                        else if(growDirection == 1 && grid[x+1][y-1] == Element.EMPTY
+                                                   && (grid[x-1][y-1] == Element.EMPTY
+                                                   && grid[x+1][y-1] == Element.EMPTY)) {
+                            grid[x+1][y-1] = Element.PLANT;   
+                        }
+                        else if(growDirection == 2 && grid[x][y-1] == Element.EMPTY
+                                                   && (grid[x-1][y-1] == Element.EMPTY
+                                                   && grid[x+1][y-1] == Element.EMPTY)) {
+                            grid[x][y-1] = Element.PLANT;   
+                        }
+                    }
+                        
+                    
+                    
+                }   // ------- end of seed -------
 
             }
         }   // end of grid loop
@@ -465,9 +592,16 @@ public class Sandbox_Game extends JPanel {
                     else {
                         int flowRate = 4;
                         int spreadDirection = RNG.nextInt(2);
+                        
 
                         // flow left
                         if (spreadDirection == 0) {
+                            // chance for steam to fade away
+                            int fade = RNG.nextInt(200);
+                            if (fade == 1){
+                                grid[x][y] = Element.EMPTY;
+                            }
+    
                             int targetX = x;
                             while (targetX > 0 && grid[targetX - 1][y] == Element.EMPTY && flowRate > 0) {
                                 targetX--;
@@ -498,6 +632,8 @@ public class Sandbox_Game extends JPanel {
         }
     }   // end of physics loop
 
+    
+    
     // function to spawn new element when clicked
     public void spawnElement(int mouseX, int mouseY) {
 
@@ -535,9 +671,10 @@ public class Sandbox_Game extends JPanel {
                 }
             }
         }
-
     }   // end of spawn element function
 
+    
+    
     // setting up the toolbar
     public static void setupToolBar() {
 
@@ -552,83 +689,64 @@ public class Sandbox_Game extends JPanel {
         // set up bttn group
         ButtonGroup elements = new ButtonGroup();
 
+        
         // set up the buttons
-        // ----------- size -----------
-        JSlider sizeButton = new JSlider(1, 15, brushSize); // min, max, default
-        sizeButton.setBounds(720, bttny + 100, bttnWidth + 50, bttnHeight + 25);
-        sizeButton.setBackground(Color.gray);
-        sizeButton.setToolTipText("Size");
+    
+        // -------- toggle buttons --------
+        
+        // sand 
+        JToggleButton sandButton = new JToggleButton();
+        setupToggleButtons(sandButton, "Sand", 0, Element.SAND, elements, toolBar);
 
+        // water 
+        JToggleButton waterButton = new JToggleButton();
+        setupToggleButtons(waterButton, "Water", 1, Element.WATER, elements, toolBar);
+
+        // lava 
+        JToggleButton lavaButton = new JToggleButton();
+        setupToggleButtons(lavaButton, "Lava", 2, Element.LAVA, elements, toolBar);
+
+        // obsidian 
+        JToggleButton obsidianButton = new JToggleButton();
+        setupToggleButtons(obsidianButton, "Obsidian", 3, Element.OBSIDIAN, elements, toolBar);
+
+        // seed 
+        JToggleButton seedButton = new JToggleButton();
+        setupToggleButtons(seedButton, "Seed", 4, Element.SEED, elements, toolBar);
+
+        // plant 
+        JToggleButton plantButton = new JToggleButton();
+        setupToggleButtons(plantButton, "Plant", 5, Element.PLANT, elements, toolBar);
+        
+        // steam 
+        JToggleButton steamButton = new JToggleButton();
+        setupToggleButtons(steamButton, "Steam", 6, Element.STEAM, elements, toolBar);
+
+        // eraser 
+        JToggleButton eraserButton = new JToggleButton();
+        setupToggleButtons(eraserButton, "Eraser", 7, Element.EMPTY, elements, toolBar);
+
+        
+        // -------- slider buttons --------
+        // size 
+        JSlider sizeButton = setupSliderButtons(1, 15, 5, "Size", 0, toolBar);
+        
         sizeButton.addChangeListener(e -> {
             brushSize = sizeButton.getValue();
         });
-
-        // ----------- sand -----------
-        JToggleButton sandButton = new JToggleButton("Sand");
-        sandButton.setBounds(bttnx, bttny, bttnWidth, bttnHeight);
-        sandButton.setBackground(Color.gray);
-
-        // change selected element
-        sandButton.addActionListener(e -> currentElement = Element.SAND);
-
-        elements.add(sandButton);
-
-        // ----------- water -----------
-        JToggleButton waterButton = new JToggleButton("Water");
-        waterButton.setBounds(bttnx + bttnSpacing + bttnWidth, bttny, bttnWidth, bttnHeight);
-        waterButton.setBackground(Color.gray);
-
-        // change selected element
-        waterButton.addActionListener(e -> currentElement = Element.WATER);
-
-        elements.add(waterButton);
         
-        // ----------- lava -----------
-        JToggleButton lavaButton = new JToggleButton("Lava");
-        lavaButton.setBounds(bttnx + 2 * bttnSpacing + 2 * bttnWidth, bttny, bttnWidth, bttnHeight);
-        lavaButton.setBackground(Color.gray);
-
-        // change selected element
-        lavaButton.addActionListener(e -> currentElement = Element.LAVA);
-
-        elements.add(lavaButton);
-       
-        // ----------- obsidian -----------
-        JToggleButton obsidianButton = new JToggleButton("Obsidian");
-        obsidianButton.setBounds(bttnx + 3 * bttnSpacing + 3 * bttnWidth, bttny, bttnWidth, bttnHeight);
-        obsidianButton.setBackground(Color.gray);
-
-        // change selected element
-        obsidianButton.addActionListener(e -> currentElement = Element.OBSIDIAN);
-
-        elements.add(obsidianButton);
+        // speed 
+        JSlider speedButton = setupSliderButtons(16, 100, frameRate, "Speed", 1, toolBar);
         
-        // ----------- steam -----------
-        JToggleButton steamButton = new JToggleButton("Steam");
-        steamButton.setBounds(bttnx + 4 * bttnSpacing + 4 * bttnWidth, bttny, bttnWidth, bttnHeight);
-        steamButton.setBackground(Color.gray);
-
-        // change selected element
-        steamButton.addActionListener(e -> currentElement = Element.STEAM);
-
-        elements.add(steamButton);
-
-        // ----------- eraser -----------
-        JToggleButton eraserButton = new JToggleButton("Eraser");
-        eraserButton.setBounds(bttnx + 5 * bttnSpacing + 5 * bttnWidth, bttny, bttnWidth, bttnHeight);
-        eraserButton.setBackground(Color.gray);
-
-        // change selected element
-        eraserButton.addActionListener(e -> currentElement = Element.EMPTY);
-
-        elements.add(eraserButton);
-
-        // ----------- reset -----------
-        JButton resetButton = new JButton("Reset");
-        resetButton.setBounds(bttnx , bttny + bttnHeight + bttnSpacing, bttnWidth, bttnHeight);
-        resetButton.setBackground(Color.gray);
-
-        // reset board
+        speedButton.addChangeListener(e -> {
+            frameRate = speedButton.getValue();
+            timer.setDelay(frameRate);
+        });
+        
+        
+        // -------- "standard" buttons --------
+        // reset 
+        JButton resetButton = setupStandardButtons("Reset", 4, toolBar);
         resetButton.addActionListener(e -> {
             for (int c = 0; c < cols; c++) {
                 for (int r = 0; r < rows; r++) {
@@ -639,46 +757,89 @@ public class Sandbox_Game extends JPanel {
             frame.repaint();
         });
 
-        // ----------- pause -----------
-        JButton pauseButton = new JButton("Pause");
-        pauseButton.setBounds(bttnx + bttnWidth + bttnSpacing, bttny + bttnHeight + bttnSpacing, bttnWidth, bttnHeight);
-        pauseButton.setBackground(Color.gray);
-
-        // pause board
+        // pause 
+        JButton pauseButton = setupStandardButtons("Pause", 5, toolBar);
         pauseButton.addActionListener(e -> {
             isPaused = true;
         });
 
         // ----------- resume -----------
-        JButton resumeButton = new JButton("Play");
-        resumeButton.setBounds(bttnx + 2 * bttnWidth + 2 * bttnSpacing, bttny + bttnHeight + bttnSpacing, bttnWidth, bttnHeight);
-        resumeButton.setBackground(Color.gray);
-
-        // resume board
+        JButton resumeButton = setupStandardButtons("Play", 6, toolBar);
         resumeButton.addActionListener(e -> {
             isPaused = false;
         });
 
-        // add buttons to panel
-        toolBar.add(sandButton);
-        toolBar.add(waterButton);
-        toolBar.add(lavaButton);
-        toolBar.add(obsidianButton);
-        toolBar.add(steamButton);
-        toolBar.add(eraserButton);
-        toolBar.add(sizeButton);
-        toolBar.add(resetButton);
-        toolBar.add(pauseButton);
-        toolBar.add(resumeButton);
-
+        
+        
         // add panel to frame
         frame.add(toolBar);
 
     }
+    
+    public static JButton setupStandardButtons(String title, int bttnpos, JPanel toolBar){
+        
+        JButton bttn = new JButton(title);
+        
+        // set location
+        bttn.setBounds(bttnx + bttnpos * bttnSpacing + bttnpos * bttnWidth, bttny+2*bttnHeight + 2*bttnSpacing, bttnWidth, bttnHeight);
+        
+        bttn.setBackground(Color.gray);
+        
+        // add to panel
+        toolBar.add(bttn);
+        
+        return bttn;
+    }
+    
+    public static void setupToggleButtons(JToggleButton bttn, String title, int bttnpos, Element type,
+                                            ButtonGroup elements, JPanel toolBar){
+        
+        bttn = new JToggleButton(title);
+        
+        // set location
+        if(bttnpos < 7){
+            bttn.setBounds(bttnx + bttnpos * bttnSpacing + bttnpos * bttnWidth, bttny, bttnWidth, bttnHeight);
+        } else{
+            bttnpos-=7;
+            bttn.setBounds(bttnx + bttnpos * bttnSpacing + bttnpos * bttnWidth, bttny+bttnHeight + bttnSpacing, bttnWidth, bttnHeight);
+        }
+        bttn.setBackground(Color.gray);
 
-    // MAIN
-    public static void main(String[] args) {
+        // change selected element
+        bttn.addActionListener(e -> currentElement = type);
 
+        // add to button group
+        elements.add(bttn);
+        
+        // add to panel
+        toolBar.add(bttn);
+    }
+    
+    public static JSlider setupSliderButtons(int min, int max, int d, 
+                        String title, int bttnpos, JPanel toolBar){
+        
+        JSlider bttn = new JSlider(min,max,d);
+        
+        // set location
+        if(bttnpos < 7){
+            bttn.setBounds(bttnx + bttnpos * bttnSpacing + bttnpos * bttnWidth, bttny+2*bttnHeight + 2*bttnSpacing, bttnWidth, bttnHeight);
+        } else{
+            bttnpos-=7;
+            bttn.setBounds(bttnx + bttnpos * bttnSpacing + bttnpos * bttnWidth, bttny+bttnHeight + bttnSpacing, bttnWidth, bttnHeight);
+        }
+        
+        bttn.setBackground(Color.gray);
+        bttn.setToolTipText(title);
+        
+        // change listener
+//        bttn.addChangeListener(CL);
+                
+        // add to panel
+        toolBar.add(bttn);
+        return bttn;
+    }
+
+    public static void setupFrame(){
         Sandbox_Game gamePanel = new Sandbox_Game();
 
         frame.setLayout(null);
@@ -688,8 +849,11 @@ public class Sandbox_Game extends JPanel {
         frame.getContentPane().setBackground(Color.darkGray);
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
-
+    }
+    
+    // MAIN
+    public static void main(String[] args) {
+        setupFrame();
         setupToolBar();
     }
-
 }
