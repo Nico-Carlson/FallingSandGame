@@ -19,6 +19,8 @@ A simple falling sand cellular automaton game built in Java. This interactive sa
 | **Lava** | Flows slowly, reacts with water to create Obsidian | Red |
 | **Obsidian** | Created when Lava meets Water; immobile barrier | Purple |
 | **Steam** | Rises upward; created from Lava-Water reactions | Gray |
+| **Seed** | Falls like sand but turns into plant if it touches water and burns if it touches lava | Green |
+| **Plant** | Grows "upward" and burns if it touches lava | Green |
 | **Eraser** | Removes elements from the grid | — |
 
 ## How to Use
