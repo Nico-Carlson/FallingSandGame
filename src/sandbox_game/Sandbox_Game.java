@@ -290,324 +290,360 @@ public class Sandbox_Game extends JPanel {
 
     }   // end of paint compenent
 
+    
     // physics loop
     public void updatePhysics() {
-
-        // ==========================================
-        // 1. GRAVITY LOOP (Bottom to Top)
-        // ==========================================
+        
+        // check from bttom to top
         for (int y = rows - 1; y >= 0; y--) {
             for (int x = 0; x < cols; x++) {
+                
+                sandPhysics(x,y);
+                
+                waterPhysics(x,y);
 
-                // -------- check for sand --------
-                if (grid[x][y] == Element.SAND) {
-                    int sandDirection = RNG.nextInt(2);
+                lavaPhysics(x, y);
 
-                    // first sand should try and fall straight down
-                    if (y < rows - 1 && (grid[x][y + 1] == Element.EMPTY || 
-                                         grid[x][y + 1] == Element.WATER || 
-                                         grid[x][y + 1] == Element.LAVA)) {
-                        Element oldPos = grid[x][y + 1];
-                        grid[x][y] = oldPos;
-                        grid[x][y + 1] = Element.SAND;
-                    }
-                    // next sand should fall bottom left
-                    else if (sandDirection == 0) {
-                        if (y < rows - 1 && x > 0 && (grid[x - 1][y + 1] == Element.EMPTY || 
-                                                      grid[x - 1][y + 1] == Element.WATER ||
-                                                      grid[x - 1][y + 1] == Element.LAVA)) {
-                            Element oldPos = grid[x - 1][y + 1];
-                            grid[x][y] = oldPos;
-                            grid[x - 1][y + 1] = Element.SAND;
-                        }
-                    }
-                    // next sand should fall bottom right
-                    else if (sandDirection == 1) {
-                        if (y < rows - 1 && x < cols - 1 && (grid[x + 1][y + 1] == Element.EMPTY ||
-                                                             grid[x + 1][y + 1] == Element.WATER ||
-                                                             grid[x + 1][y + 1] == Element.LAVA)) {
-                            Element oldPos = grid[x + 1][y + 1];
-                            grid[x][y] = oldPos;
-                            grid[x + 1][y + 1] = Element.SAND;
-                        }
-                    }
-                }
+                seedPhysics(x, y);
 
-                // -------- check for water --------
-                if (grid[x][y] == Element.WATER) {
+                plantPhysics(x, y);
 
-                    // 1 first water should try and fall straight down
-                    if (y < rows - 1 && grid[x][y + 1] == Element.EMPTY) {
-                        grid[x][y] = Element.EMPTY;
-                        grid[x][y + 1] = Element.WATER;
-                    }
-                    // 2 next water should move bottom left
-                    else if (y < rows - 1 && x > 0 && grid[x - 1][y + 1] == Element.EMPTY) {
-                        grid[x][y] = Element.EMPTY;
-                        grid[x - 1][y + 1] = Element.WATER;
-                    }
-                    // 3 next water should move bottom right
-                    else if (y < rows - 1 && x < cols - 1 && grid[x + 1][y + 1] == Element.EMPTY) {
-                        grid[x][y] = Element.EMPTY;
-                        grid[x + 1][y + 1] = Element.WATER;
-                    }
-                    // 4 spread left or right 
-                    else {
-                        int flowRate = 4;
-                        int waterDirection = RNG.nextInt(2);
-
-                        // flow left
-                        if (waterDirection == 0) {
-                            int targetX = x;
-                            while (targetX > 0 && grid[targetX - 1][y] == Element.EMPTY && flowRate > 0) {
-                                targetX--;
-                                flowRate--;
-                            }
-                            if (targetX != x) {
-                                grid[x][y] = Element.EMPTY;
-                                grid[targetX][y] = Element.WATER;
-                            }
-                        }
-                        // flow right
-                        else {
-                            int targetX = x;
-                            while (targetX < cols - 1 && grid[targetX + 1][y] == Element.EMPTY && flowRate > 0) {
-                                targetX++;
-                                flowRate--;
-                            }
-                            if (targetX != x) {
-                                grid[x][y] = Element.EMPTY;
-                                grid[targetX][y] = Element.WATER;
-                                x = targetX; 
-                            }
-                        }
-                    }
-                }
-
-                // -------- check for lava --------
-                if (grid[x][y] == Element.LAVA) {
-
-                    // 1 check four spots for water to make obsidian
-                    if (y < rows - 1 && grid[x][y + 1] == Element.WATER) {
-                        grid[x][y + 1] = Element.OBSIDIAN;
-                        grid[x][y] = Element.STEAM;
-                    } 
-                    else if (y > 0 && grid[x][y - 1] == Element.WATER) {
-                        grid[x][y - 1] = Element.STEAM;
-                        grid[x][y] = Element.OBSIDIAN;
-                    } 
-                    else if (x < cols - 1 && grid[x + 1][y] == Element.WATER) {
-                        grid[x + 1][y] = Element.OBSIDIAN;
-                        grid[x][y] = Element.STEAM;
-                    } 
-                    else if (x > 0 && grid[x - 1][y] == Element.WATER) {
-                        grid[x - 1][y] = Element.STEAM;
-                        grid[x][y] = Element.OBSIDIAN;
-                    }
-                    // 2 lava should try and fall straight down
-                    else if (y < rows - 1 && grid[x][y + 1] == Element.EMPTY) {
-                        grid[x][y] = Element.EMPTY;
-                        grid[x][y + 1] = Element.LAVA;
-                    }
-                    // 3 spread left or right
-                    else {
-                        int flowRate = 1;
-                        int lavaDirection = RNG.nextInt(2);
-
-                        if (lavaDirection == 0) {
-                            int targetX = x;
-                            while (targetX > 0 && grid[targetX - 1][y] == Element.EMPTY && flowRate > 0) {
-                                targetX--;
-                                flowRate--;
-                            }
-                            if (targetX != x) {
-                                grid[x][y] = Element.EMPTY;
-                                grid[targetX][y] = Element.LAVA;
-                            }
-                        } else {
-                            int targetX = x;
-                            while (targetX < cols - 1 && grid[targetX + 1][y] == Element.EMPTY && flowRate > 0) {
-                                targetX++;
-                                flowRate--;
-                            }
-                            if (targetX != x) {
-                                grid[x][y] = Element.EMPTY;
-                                grid[targetX][y] = Element.LAVA;
-                                x = targetX;
-                            }
-                        }
-                    }
-                }
-
-                // -------- check for seed --------
-                if (grid[x][y] == Element.SEED) {
-                    int seedDirection = RNG.nextInt(2);
-
-                    // first seed should try and fall straight down
-                    if (y < rows - 1 && grid[x][y + 1] == Element.EMPTY) {
-                        Element oldPos = grid[x][y + 1];
-                        grid[x][y] = oldPos;
-                        grid[x][y + 1] = Element.SEED;
-                    }
-                    else if (seedDirection == 0) {
-                        if (y < rows - 1 && x > 0 && grid[x - 1][y + 1] == Element.EMPTY) {
-                            Element oldPos = grid[x - 1][y + 1];
-                            grid[x][y] = oldPos;
-                            grid[x - 1][y + 1] = Element.SEED;
-                        }
-                    }
-                    else if (seedDirection == 1) {
-                        if (y < rows - 1 && x < cols - 1 && grid[x + 1][y + 1] == Element.EMPTY) {
-                            Element oldPos = grid[x + 1][y + 1];
-                            grid[x][y] = oldPos;
-                            grid[x + 1][y + 1] = Element.SEED;
-                        }
-                    }
-                    
-                    // burn if it touches lava
-                    if (y < rows - 1 && y > 0 && x > 0 && x < cols - 1 &&
-                        (grid[x][y + 1] == Element.LAVA ||
-                         grid[x][y - 1] == Element.LAVA ||
-                         grid[x - 1][y] == Element.LAVA ||
-                         grid[x + 1][y] == Element.LAVA)) {
-                        
-                        grid[x][y] = Element.STEAM;
-                    }
-                    // if its touching water
-                    else if (y < rows - 1 && grid[x][y + 1] == Element.WATER) {
-                        grid[x][y + 1] = Element.EMPTY;
-                        grid[x][y] = Element.PLANT;
-                    } 
-                    else if (y > 0 && grid[x][y - 1] == Element.WATER) {
-                        grid[x][y - 1] = Element.EMPTY;
-                        grid[x][y] = Element.PLANT;
-                    } 
-                    else if (x < cols - 1 && grid[x + 1][y] == Element.WATER) {
-                        grid[x + 1][y] = Element.EMPTY;
-                        grid[x][y] = Element.PLANT;
-                    } 
-                    else if (x > 0 && grid[x - 1][y] == Element.WATER) {
-                        grid[x - 1][y] = Element.EMPTY;
-                        grid[x][y] = Element.PLANT;
-                    }
-                }
-
-                // -------- check for plant --------
-                if (grid[x][y] == Element.PLANT) {
-                    
-                    // burn if it touches lava
-                    if (y < rows - 1 && y > 0 && x > 0 && x < cols - 1 &&
-                        (grid[x][y + 1] == Element.LAVA ||
-                         grid[x][y - 1] == Element.LAVA ||
-                         grid[x - 1][y] == Element.LAVA ||
-                         grid[x + 1][y] == Element.LAVA)) {
-                        
-                        grid[x][y] = Element.STEAM;
-                    }
-                    
-                    int growDirection = RNG.nextInt(3);
-                    int growChance = RNG.nextInt(50);
-                        
-                    if (growChance == 1 && x > 0 && x < cols - 1 && y > 0 && y < rows - 1) {
-                        if (growDirection == 0 && grid[x - 1][y - 1] == Element.EMPTY && 
-                            (grid[x - 1][y - 1] == Element.EMPTY && grid[x + 1][y - 1] == Element.EMPTY)) {
-                            grid[x - 1][y - 1] = Element.PLANT;   
-                        } 
-                        else if (growDirection == 1 && grid[x + 1][y - 1] == Element.EMPTY && 
-                                 (grid[x - 1][y - 1] == Element.EMPTY && grid[x + 1][y - 1] == Element.EMPTY)) {
-                            grid[x + 1][y - 1] = Element.PLANT;   
-                        } 
-                        else if (growDirection == 2 && grid[x][y - 1] == Element.EMPTY && 
-                                 (grid[x - 1][y - 1] == Element.EMPTY && grid[x + 1][y - 1] == Element.EMPTY)) {
-                            grid[x][y - 1] = Element.PLANT;   
-                        }
-                    }
-                }
             }
         }
 
-        // ==========================================
-        // 2. ANTI-GRAVITY LOOP (Top to Bottom)
-        // ==========================================
+        
+        // check from top to bottom
         for (int y = 0; y < rows; y++) {
             for (int x = 0; x < cols; x++) {
 
-                // -------- check for steam --------
-                if (grid[x][y] == Element.STEAM) {
-                    int driftBias = RNG.nextInt(3);
+                steamPhysics(x, y);
+                
+            }
+        }
+        
+    }   // end of update physics
 
-                    // 1 up-left first
-                    if (driftBias == 0 && y > 0 && x > 0 && 
-                        (grid[x - 1][y - 1] == Element.EMPTY || 
-                         grid[x - 1][y - 1] == Element.WATER || 
-                         grid[x - 1][y - 1] == Element.LAVA)) {
-                        
-                        Element oldPos = grid[x - 1][y - 1];
-                        grid[x][y] = oldPos;
-                        grid[x - 1][y - 1] = Element.STEAM;
-                    }
-                    // 2 up-right first
-                    else if (driftBias == 1 && y > 0 && x < cols - 1 && 
-                             (grid[x + 1][y - 1] == Element.EMPTY || 
-                              grid[x + 1][y - 1] == Element.WATER || 
-                              grid[x + 1][y - 1] == Element.LAVA)) {
-                        
-                        Element oldPos = grid[x + 1][y - 1];
-                        grid[x][y] = oldPos;
-                        grid[x + 1][y - 1] = Element.STEAM;
-                    }
-                    // 3 straight up
-                    else if (y > 0 && (grid[x][y - 1] == Element.EMPTY || 
-                                       grid[x][y - 1] == Element.WATER || 
-                                       grid[x][y - 1] == Element.LAVA)) {
-                        
-                        Element oldPos = grid[x][y - 1];
-                        grid[x][y] = oldPos;
-                        grid[x][y - 1] = Element.STEAM;
-                    }
-                    // 4 spread left or right against ceilings
-                    else {
-                        int flowRate = 4;
-                        int spreadDirection = RNG.nextInt(2);
+    // sand physics
+    public void sandPhysics(int x, int y){
+        
+        // -------- check for sand --------
+        if (grid[x][y] == Element.SAND) {
+            int sandDirection = RNG.nextInt(2);
 
-                        // flow left
-                        if (spreadDirection == 0) {
-                            // chance for steam to fade away
-                            int fade = RNG.nextInt(200);
-                            if (fade == 1) {
-                                grid[x][y] = Element.EMPTY;
-                            }
-    
-                            int targetX = x;
-                            while (targetX > 0 && grid[targetX - 1][y] == Element.EMPTY && flowRate > 0) {
-                                targetX--;
-                                flowRate--;
-                            }
-                            if (targetX != x) {
-                                grid[x][y] = Element.EMPTY;
-                                grid[targetX][y] = Element.STEAM;
-                            }
-                        }
-                        // flow right
-                        else {
-                            int targetX = x;
-                            while (targetX < cols - 1 && grid[targetX + 1][y] == Element.EMPTY && flowRate > 0) {
-                                targetX++;
-                                flowRate--;
-                            }
-                            if (targetX != x) {
-                                grid[x][y] = Element.EMPTY;
-                                grid[targetX][y] = Element.STEAM;
-                                x = targetX; 
-                            }
-                        }
+            // first sand should try and fall straight down
+            if (y < rows - 1 && (grid[x][y + 1] == Element.EMPTY || 
+                                 grid[x][y + 1] == Element.WATER || 
+                                 grid[x][y + 1] == Element.LAVA)) {
+                Element oldPos = grid[x][y + 1];
+                grid[x][y] = oldPos;
+                grid[x][y + 1] = Element.SAND;
+            }
+            // next sand should fall bottom left
+            else if (sandDirection == 0) {
+                if (y < rows - 1 && x > 0 && (grid[x - 1][y + 1] == Element.EMPTY || 
+                                              grid[x - 1][y + 1] == Element.WATER ||
+                                              grid[x - 1][y + 1] == Element.LAVA)) {
+                    Element oldPos = grid[x - 1][y + 1];
+                    grid[x][y] = oldPos;
+                    grid[x - 1][y + 1] = Element.SAND;
+                }
+            }
+            // next sand should fall bottom right
+            else if (sandDirection == 1) {
+                if (y < rows - 1 && x < cols - 1 && (grid[x + 1][y + 1] == Element.EMPTY ||
+                                                     grid[x + 1][y + 1] == Element.WATER ||
+                                                     grid[x + 1][y + 1] == Element.LAVA)) {
+                    Element oldPos = grid[x + 1][y + 1];
+                    grid[x][y] = oldPos;
+                    grid[x + 1][y + 1] = Element.SAND;
+                }
+            }
+        }
+        
+    }
+    // water physics
+    public void waterPhysics(int x, int y){
+        
+        // -------- check for water --------
+        if (grid[x][y] == Element.WATER) {
+
+            // 1 first water should try and fall straight down
+            if (y < rows - 1 && grid[x][y + 1] == Element.EMPTY) {
+                grid[x][y] = Element.EMPTY;
+                grid[x][y + 1] = Element.WATER;
+            }
+            // 2 next water should move bottom left
+            else if (y < rows - 1 && x > 0 && grid[x - 1][y + 1] == Element.EMPTY) {
+                grid[x][y] = Element.EMPTY;
+                grid[x - 1][y + 1] = Element.WATER;
+            }
+            // 3 next water should move bottom right
+            else if (y < rows - 1 && x < cols - 1 && grid[x + 1][y + 1] == Element.EMPTY) {
+                grid[x][y] = Element.EMPTY;
+                grid[x + 1][y + 1] = Element.WATER;
+            }
+            // 4 spread left or right 
+            else {
+                int flowRate = 4;
+                int waterDirection = RNG.nextInt(2);
+
+                // flow left
+                if (waterDirection == 0) {
+                    int targetX = x;
+                    while (targetX > 0 && grid[targetX - 1][y] == Element.EMPTY && flowRate > 0) {
+                        targetX--;
+                        flowRate--;
+                    }
+                    if (targetX != x) {
+                        grid[x][y] = Element.EMPTY;
+                        grid[targetX][y] = Element.WATER;
+                    }
+                }
+                // flow right
+                else {
+                    int targetX = x;
+                    while (targetX < cols - 1 && grid[targetX + 1][y] == Element.EMPTY && flowRate > 0) {
+                        targetX++;
+                        flowRate--;
+                    }
+                    if (targetX != x) {
+                        grid[x][y] = Element.EMPTY;
+                        grid[targetX][y] = Element.WATER;
+                        x = targetX; 
                     }
                 }
             }
         }
+        
     }
+    // lava physics
+    public void lavaPhysics(int x, int y){
+        
+        // -------- check for lava --------
+        if (grid[x][y] == Element.LAVA) {
 
-    
+            // 1 check four spots for water to make obsidian
+            if (y < rows - 1 && grid[x][y + 1] == Element.WATER) {
+                grid[x][y + 1] = Element.OBSIDIAN;
+                grid[x][y] = Element.STEAM;
+            } 
+            else if (y > 0 && grid[x][y - 1] == Element.WATER) {
+                grid[x][y - 1] = Element.STEAM;
+                grid[x][y] = Element.OBSIDIAN;
+            } 
+            else if (x < cols - 1 && grid[x + 1][y] == Element.WATER) {
+                grid[x + 1][y] = Element.OBSIDIAN;
+                grid[x][y] = Element.STEAM;
+            } 
+            else if (x > 0 && grid[x - 1][y] == Element.WATER) {
+                grid[x - 1][y] = Element.STEAM;
+                grid[x][y] = Element.OBSIDIAN;
+            }
+            // 2 lava should try and fall straight down
+            else if (y < rows - 1 && grid[x][y + 1] == Element.EMPTY) {
+                grid[x][y] = Element.EMPTY;
+                grid[x][y + 1] = Element.LAVA;
+            }
+            // 3 spread left or right
+            else {
+                int flowRate = 1;
+                int lavaDirection = RNG.nextInt(2);
+
+                if (lavaDirection == 0) {
+                    int targetX = x;
+                    while (targetX > 0 && grid[targetX - 1][y] == Element.EMPTY && flowRate > 0) {
+                        targetX--;
+                        flowRate--;
+                    }
+                    if (targetX != x) {
+                        grid[x][y] = Element.EMPTY;
+                        grid[targetX][y] = Element.LAVA;
+                    }
+                } else {
+                    int targetX = x;
+                    while (targetX < cols - 1 && grid[targetX + 1][y] == Element.EMPTY && flowRate > 0) {
+                        targetX++;
+                        flowRate--;
+                    }
+                    if (targetX != x) {
+                        grid[x][y] = Element.EMPTY;
+                        grid[targetX][y] = Element.LAVA;
+                        x = targetX;
+                    }
+                }
+            }
+        }
+        
+    }
+    // seed physics
+    public void seedPhysics(int x, int y){
+        
+        // -------- check for seed --------
+        if (grid[x][y] == Element.SEED) {
+            int seedDirection = RNG.nextInt(2);
+
+            // first seed should try and fall straight down
+            if (y < rows - 1 && grid[x][y + 1] == Element.EMPTY) {
+                Element oldPos = grid[x][y + 1];
+                grid[x][y] = oldPos;
+                grid[x][y + 1] = Element.SEED;
+            }
+            else if (seedDirection == 0) {
+                if (y < rows - 1 && x > 0 && grid[x - 1][y + 1] == Element.EMPTY) {
+                    Element oldPos = grid[x - 1][y + 1];
+                    grid[x][y] = oldPos;
+                    grid[x - 1][y + 1] = Element.SEED;
+                }
+            }
+            else if (seedDirection == 1) {
+                if (y < rows - 1 && x < cols - 1 && grid[x + 1][y + 1] == Element.EMPTY) {
+                    Element oldPos = grid[x + 1][y + 1];
+                    grid[x][y] = oldPos;
+                    grid[x + 1][y + 1] = Element.SEED;
+                }
+            }
+
+            // burn if it touches lava
+            if (y < rows - 1 && y > 0 && x > 0 && x < cols - 1 &&
+                (grid[x][y + 1] == Element.LAVA ||
+                 grid[x][y - 1] == Element.LAVA ||
+                 grid[x - 1][y] == Element.LAVA ||
+                 grid[x + 1][y] == Element.LAVA)) {
+
+                grid[x][y] = Element.STEAM;
+            }
+            // if its touching water
+            else if (y < rows - 1 && grid[x][y + 1] == Element.WATER) {
+                grid[x][y + 1] = Element.EMPTY;
+                grid[x][y] = Element.PLANT;
+            } 
+            else if (y > 0 && grid[x][y - 1] == Element.WATER) {
+                grid[x][y - 1] = Element.EMPTY;
+                grid[x][y] = Element.PLANT;
+            } 
+            else if (x < cols - 1 && grid[x + 1][y] == Element.WATER) {
+                grid[x + 1][y] = Element.EMPTY;
+                grid[x][y] = Element.PLANT;
+            } 
+            else if (x > 0 && grid[x - 1][y] == Element.WATER) {
+                grid[x - 1][y] = Element.EMPTY;
+                grid[x][y] = Element.PLANT;
+            }
+        }
+        
+    }
+    // plant physics
+    public void plantPhysics(int x, int y){
+        
+        // -------- check for plant --------
+        if (grid[x][y] == Element.PLANT) {
+
+            // burn if it touches lava
+            if (y < rows - 1 && y > 0 && x > 0 && x < cols - 1 &&
+                (grid[x][y + 1] == Element.LAVA ||
+                 grid[x][y - 1] == Element.LAVA ||
+                 grid[x - 1][y] == Element.LAVA ||
+                 grid[x + 1][y] == Element.LAVA)) {
+
+                grid[x][y] = Element.STEAM;
+            }
+
+            int growDirection = RNG.nextInt(3);
+            int growChance = RNG.nextInt(50);
+
+            if (growChance == 1 && x > 0 && x < cols - 1 && y > 0 && y < rows - 1) {
+                if (growDirection == 0 && grid[x - 1][y - 1] == Element.EMPTY && 
+                    (grid[x - 1][y - 1] == Element.EMPTY && grid[x + 1][y - 1] == Element.EMPTY)) {
+                    grid[x - 1][y - 1] = Element.PLANT;   
+                } 
+                else if (growDirection == 1 && grid[x + 1][y - 1] == Element.EMPTY && 
+                         (grid[x - 1][y - 1] == Element.EMPTY && grid[x + 1][y - 1] == Element.EMPTY)) {
+                    grid[x + 1][y - 1] = Element.PLANT;   
+                } 
+                else if (growDirection == 2 && grid[x][y - 1] == Element.EMPTY && 
+                         (grid[x - 1][y - 1] == Element.EMPTY && grid[x + 1][y - 1] == Element.EMPTY)) {
+                    grid[x][y - 1] = Element.PLANT;   
+                }
+            }
+        }
+        
+    }
+    // steam physics
+    public void steamPhysics(int x, int y){
+        
+        // -------- check for steam --------
+        if (grid[x][y] == Element.STEAM) {
+            int driftBias = RNG.nextInt(3);
+
+            // 1 up-left first
+            if (driftBias == 0 && y > 0 && x > 0 && 
+                (grid[x - 1][y - 1] == Element.EMPTY || 
+                 grid[x - 1][y - 1] == Element.WATER || 
+                 grid[x - 1][y - 1] == Element.LAVA)) {
+
+                Element oldPos = grid[x - 1][y - 1];
+                grid[x][y] = oldPos;
+                grid[x - 1][y - 1] = Element.STEAM;
+            }
+            // 2 up-right first
+            else if (driftBias == 1 && y > 0 && x < cols - 1 && 
+                     (grid[x + 1][y - 1] == Element.EMPTY || 
+                      grid[x + 1][y - 1] == Element.WATER || 
+                      grid[x + 1][y - 1] == Element.LAVA)) {
+
+                Element oldPos = grid[x + 1][y - 1];
+                grid[x][y] = oldPos;
+                grid[x + 1][y - 1] = Element.STEAM;
+            }
+            // 3 straight up
+            else if (y > 0 && (grid[x][y - 1] == Element.EMPTY || 
+                               grid[x][y - 1] == Element.WATER || 
+                               grid[x][y - 1] == Element.LAVA)) {
+
+                Element oldPos = grid[x][y - 1];
+                grid[x][y] = oldPos;
+                grid[x][y - 1] = Element.STEAM;
+            }
+            // 4 spread left or right against ceilings
+            else {
+                int flowRate = 4;
+                int spreadDirection = RNG.nextInt(2);
+
+                // flow left
+                if (spreadDirection == 0) {
+                    // chance for steam to fade away
+                    int fade = RNG.nextInt(200);
+                    if (fade == 1) {
+                        grid[x][y] = Element.EMPTY;
+                    }
+
+                    int targetX = x;
+                    while (targetX > 0 && grid[targetX - 1][y] == Element.EMPTY && flowRate > 0) {
+                        targetX--;
+                        flowRate--;
+                    }
+                    if (targetX != x) {
+                        grid[x][y] = Element.EMPTY;
+                        grid[targetX][y] = Element.STEAM;
+                    }
+                }
+                // flow right
+                else {
+                    int targetX = x;
+                    while (targetX < cols - 1 && grid[targetX + 1][y] == Element.EMPTY && flowRate > 0) {
+                        targetX++;
+                        flowRate--;
+                    }
+                    if (targetX != x) {
+                        grid[x][y] = Element.EMPTY;
+                        grid[targetX][y] = Element.STEAM;
+                        x = targetX; 
+                    }
+                }
+            }
+        }
+        
+    }
     
     // function to spawn new element when clicked
     public void spawnElement(int mouseX, int mouseY) {
