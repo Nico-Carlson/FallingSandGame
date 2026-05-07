@@ -5,7 +5,6 @@ Dev: Nico Carlson
 
 inspiration: https://www.youtube.com/watch?v=5Ka3tbbT-9E
 and : https://www.youtube.com/watch?v=VLZjd_Y1gJ8
-i did my best not to copy anything from these (:
  */
 package sandbox_game;
 
@@ -21,16 +20,6 @@ import javax.swing.JPanel;
 import javax.swing.Timer;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
-import static sandbox_game.Sandbox_Game.brushSize;
-import static sandbox_game.Sandbox_Game.cols;
-import static sandbox_game.Sandbox_Game.currentElement;
-import static sandbox_game.Sandbox_Game.frame;
-import static sandbox_game.Sandbox_Game.frameRate;
-import static sandbox_game.Sandbox_Game.grid;
-import static sandbox_game.Sandbox_Game.isPaused;
-import static sandbox_game.Sandbox_Game.rows;
-import static sandbox_game.Sandbox_Game.savedGrid;
-import static sandbox_game.Sandbox_Game.timer;
 
 
 // --------- Main Class -----------
@@ -220,64 +209,45 @@ public class Sandbox_Game extends JPanel {
         for (int x = 0; x < cols; x++) {
             for (int y = 0; y < rows; y++) {
 
-                // --------- EMPTY ---------
-                if (grid[x][y] == Element.EMPTY) {
-                    g.setColor(Color.darkGray);
-
-                    g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-
-                }
-                // --------- SAND --------- 
-                else if (grid[x][y] == Element.SAND) {
-                    // yellow for sand
-                    g.setColor(new Color(0xC2B280));
-
-                    g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-
-                }
-                // --------- WATER --------- 
-                else if (grid[x][y] == Element.WATER) {
-                    // blue for water
-                    g.setColor(new Color(0, 191, 255));
-
-                    g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-
-                }
-                // --------- LAVA --------- 
-                else if (grid[x][y] == Element.LAVA) {
-                    // red for water
-                    g.setColor(new Color(0xE42217));
-
-                    g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-
-                }
-                // --------- OBSIDIAN --------- 
-                else if (grid[x][y] == Element.OBSIDIAN) {
-                    g.setColor(new Color(0x382B46));
-
-                    g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-
-                }
-                // --------- STEAM --------- 
-                else if (grid[x][y] == Element.STEAM) {
-                    g.setColor(new Color(0x9E9E9E));
-
-                    g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-
-                }
-                // --------- SEED --------- 
-                else if (grid[x][y] == Element.SEED) {
-                    g.setColor(Color.green.darker());
-
-                    g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-
-                }
-                // --------- PLANT --------- 
-                else if (grid[x][y] == Element.PLANT) {
-                    g.setColor(Color.green.darker().darker());
-
-                    g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-
+                if (null != grid[x][y])
+                switch (grid[x][y]) {
+                    case EMPTY -> {
+                        g.setColor(Color.darkGray);
+                        g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    }
+                    case SAND -> {
+                        // yellow for sand
+                        g.setColor(new Color(0xC2B280));
+                        g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    }
+                    case WATER -> {
+                        // blue for water
+                        g.setColor(new Color(0, 191, 255));
+                        g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    }
+                    case LAVA -> {
+                        // red for water
+                        g.setColor(new Color(0xE42217));
+                        g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    }
+                    case OBSIDIAN -> {
+                        g.setColor(new Color(0x382B46));
+                        g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    }
+                    case STEAM -> {
+                        g.setColor(new Color(0x9E9E9E));
+                        g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    }
+                    case SEED -> {
+                        g.setColor(Color.green.darker());
+                        g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    }
+                    case PLANT -> {
+                        g.setColor(Color.green.darker().darker());
+                        g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    }
+                    default -> {
+                    }
                 }
 
             }
@@ -339,7 +309,7 @@ public class Sandbox_Game extends JPanel {
         // radius squared for the distance check
         double radiusSq = (brushSize * brushSize) / 4.0;
 
-        // loop through the brush to highlight cursor area
+        // loop through the brush 
         for (int i = 0; i <= brushSize; i++) {
             for (int j = 0; j <= brushSize; j++) {
 
