@@ -540,12 +540,33 @@ public class Sandbox_Game extends JPanel {
                     // account for bounds
                     if (targetX >= 0 && targetX < cols && targetY >= 0 && targetY < rows) {
                         
+                        // spawn conways cells
+                        if (currentElement == Element.CONWAY){
+                            if (brushSize > 3){
+                                int chance = RNG.nextInt(50);
+                                if(chance == 0){
+                                    grid[targetX][targetY] = currentElement;
+                                }
+                            } else {
+                                grid[targetX][targetY] = currentElement;
+                            }
+                        }
+                        
                         // spawn boids
                         if (currentElement == Element.BOID){
-                            boids.add(new Boid(targetX * cellSize, targetY * cellSize));
+                            if (brushSize > 3){
+                                int chance = RNG.nextInt(50);
+                                if(chance == 0){
+                                    boids.add(new Boid(targetX * cellSize, targetY * cellSize));
+                                } else {
+                                    grid[targetX][targetY] = Element.EMPTY;
+                                }
+                            } else {
+                                boids.add(new Boid(targetX * cellSize, targetY * cellSize));
+                            }
                         }
                         // spawn regular elements
-                        else {
+                        else if (currentElement != Element.CONWAY) {
                             grid[targetX][targetY] = currentElement;
                         }
 
@@ -553,6 +574,12 @@ public class Sandbox_Game extends JPanel {
                 }
             }
         }
+        
+//        // spawn boids
+//        if (currentElement == Element.BOID){
+//            boids.add(new Boid(gridX * cellSize, gridY * cellSize));
+//        }
+        
     }   // end of spawn element function
 
 

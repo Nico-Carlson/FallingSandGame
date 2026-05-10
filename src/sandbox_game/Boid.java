@@ -136,13 +136,41 @@ class Boid {
         int width = Sandbox_Game.gamePanel.getWidth();
         int height = Sandbox_Game.gamePanel.getHeight();
         
-        double x = this.position.x;
-        double y = this.position.y;
+        Vector desired = new Vector(this.velocity.x, this.velocity.y);
+        boolean nearEdge = false;
+        double edgeDist = 25.0;
         
-        if(x > width || x < 0 || y > height || y < 0) {
-            this.velocity.x *=-1;
-            this.velocity.y *=-1;
-        } 
+        if(this.position.x < edgeDist) {
+            desired.x = this.maxSpeed;
+            nearEdge = true;
+        } else if (this.position.x > width - edgeDist) {
+            desired.x = -this.maxSpeed;
+            nearEdge = true;
+        }
+        
+        if(this.position.y < edgeDist) {
+            desired.y = this.maxSpeed;
+            nearEdge = true;
+        } else if (this.position.y > height - edgeDist) {
+            desired.y = -this.maxSpeed;
+            nearEdge = true;
+        }
+        
+        // apply a strong turning force near an edge
+        if (nearEdge) {
+            desired.normalize();
+            desired.mult(this.maxSpeed);
+            Vector steer = new Vector(desired.x - this.velocity.x, desired.y - this.velocity.y);
+            steer.limit(this.maxForce * 3.0);
+            this.applyForce(steer);
+        }
+        
+        // account for any glitches where a boid goes out of frame
+        if (this.position.x < 0) this.position.x = 0;
+        if (this.position.x > width) this.position.x = width;
+        if (this.position.y < 0) this.position.y = 0;
+        if (this.position.y > height) this.position.y = height;
+        
     }   // end of checkEdges
     
     // accumulate steering forces
@@ -267,7 +295,7 @@ class Boid {
 
     // Helper method for lethal blocks
     private boolean isLethal(Sandbox_Game.Element e) {
-        return e == Sandbox_Game.Element.LAVA || e == Sandbox_Game.Element.FIRE;
+        return e == Sandbox_Game.Element.LAVA || e == Sandbox_Game.Element.FIRE || e == Sandbox_Game.Element.CONWAY;
     }
 
     public boolean interactWithEnvironment(Sandbox_Game.Element[][] grid, int cellSize, int cols, int rows) {
@@ -277,12 +305,50 @@ class Boid {
         // If a solid block fell onto the boid's current position, push it down
         if (currentGridX >= 0 && currentGridX < cols && currentGridY >= 0 && currentGridY < rows) {
             if (isSolid(grid[currentGridX][currentGridY])) {
-                // Push the boid down to simulate it crawling out of the sand
-                this.position.y += cellSize; 
-//                this.velocity.y = -Math.abs(this.velocity.y); // Force velocity upward
                 
-                // Add a small horizontal scramble so they don't stack perfectly vertical
-                this.velocity.x += (RNG.nextDouble() - 0.5) * 4; 
+                // Push the boid up to simulate it crawling out of the sand
+                if (currentGridY > 0 && !isSolid(grid[currentGridX][currentGridY-1])){
+                    this.position.y -= cellSize; 
+                    this.velocity.y = -Math.abs(this.velocity.y); // Force velocity upward
+                } else {
+                    return true;
+                }
+                
+            }
+        }
+        
+        // look ahead to avoid walls/danger
+        Vector feeler = new Vector(this.velocity.x, this.velocity.y);
+        feeler.normalize();
+        feeler.mult(cellSize*8); // look ahead n cells
+        
+        int lookAheadX = (int)((this.position.x + feeler.x) / cellSize);
+        int lookAheadY = (int)((this.position.y + feeler.y) / cellSize);
+        
+        if (lookAheadX > 0 && lookAheadX < cols-1 && lookAheadY > 0 && lookAheadY < rows-1){
+            Sandbox_Game.Element aheadElement = grid[lookAheadX][lookAheadY];
+            
+            if(isLethal(aheadElement) || isSolid(aheadElement)) {
+                
+                // vector pointing from hazards center to boid
+                double hazardCenterX = lookAheadX * cellSize + (cellSize / 2.0);
+                double hazardCenterY = lookAheadY * cellSize + (cellSize / 2.0);
+                
+                Vector desired = new Vector(this.position.x - hazardCenterX, this.position.y - hazardCenterY);
+                
+                // add a randomizer so boids dont just slam to a halt
+                desired.x += (RNG.nextDouble() - 0.5) * 2;
+                desired.y += (RNG.nextDouble() - 0.5) * 2;
+                
+                desired.normalize();
+                desired.mult(this.maxSpeed);
+                
+                Vector steer = new Vector(desired.x - this.velocity.x, desired.y - this.velocity.y);
+                
+                // lethal blocks should trigger a larger response
+                double avoidForce = isLethal(aheadElement) ? this.maxForce * 5 : this.maxForce * 1.5;
+                steer.limit(avoidForce);
+                this.applyForce(steer);
             }
         }
         
@@ -299,9 +365,7 @@ class Boid {
             }
 
             boolean hitWall = false;
-
-            // Split-axis checking: Check X and Y independently to allow sliding along walls
-            // Check X axis
+           
             if (isSolid(grid[nextGridX][currentGridY])) {
                 this.velocity.x *= -1.2; // Bounce and amplify slightly to escape
                 hitWall = true;
