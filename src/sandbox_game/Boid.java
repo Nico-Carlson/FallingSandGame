@@ -7,6 +7,17 @@ package sandbox_game;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import static sandbox_game.Sandbox_Game.boids;
+import static sandbox_game.Sandbox_Game.cellSize;
+import static sandbox_game.Sandbox_Game.cols;
+import static sandbox_game.Sandbox_Game.grid;
+import static sandbox_game.Sandbox_Game.height;
+import static sandbox_game.Sandbox_Game.rows;
+import static sandbox_game.Sandbox_Game.spatialCellSize;
+import static sandbox_game.Sandbox_Game.spatialCols;
+import static sandbox_game.Sandbox_Game.spatialGrid;
+import static sandbox_game.Sandbox_Game.spatialRows;
+import static sandbox_game.Sandbox_Game.width;
 
 class Vector {
     
@@ -87,6 +98,9 @@ class Boid {
     public double maxForce;
     public Random RNG = new Random();
 
+    public Boid() {
+    } 
+    
     public Boid(double startX, double startY) {
         this.position = new Vector (startX, startY);
         this.velocity = new Vector((RNG.nextDouble() - 0.5) * 2, (RNG.nextDouble() - 0.5) * 2);
@@ -260,20 +274,18 @@ class Boid {
         int currentGridX = (int) (this.position.x / cellSize);
         int currentGridY = (int) (this.position.y / cellSize);
 
-        // --- 1. ESCAPE MECHANIC (For falling sand) ---
-        // If a solid block fell onto the boid's current position, push it out
+        // If a solid block fell onto the boid's current position, push it down
         if (currentGridX >= 0 && currentGridX < cols && currentGridY >= 0 && currentGridY < rows) {
             if (isSolid(grid[currentGridX][currentGridY])) {
-                // Push the boid up to simulate it crawling out of the sand
-                this.position.y -= cellSize; 
-                this.velocity.y = -Math.abs(this.velocity.y); // Force velocity upward
+                // Push the boid down to simulate it crawling out of the sand
+                this.position.y += cellSize; 
+//                this.velocity.y = -Math.abs(this.velocity.y); // Force velocity upward
                 
                 // Add a small horizontal scramble so they don't stack perfectly vertical
                 this.velocity.x += (RNG.nextDouble() - 0.5) * 4; 
             }
         }
-
-        // --- 2. PREDICTIVE COLLISION (Dodging walls) ---
+        
         // Look at where the boid wants to go next frame
         int nextGridX = (int) ((this.position.x + this.velocity.x) / cellSize);
         int nextGridY = (int) ((this.position.y + this.velocity.y) / cellSize);
@@ -315,6 +327,45 @@ class Boid {
         }
         
         return false;
+    }
+    
+    // function to paint boids
+    public void paintBoids(){
+    // 1. Clear the spatial grid
+        for (int c = 0; c < spatialCols; c++) {
+            for (int r = 0; r < spatialRows; r++) {
+                spatialGrid[c][r].clear();
+            }
+        }
+
+        // 2. Populate the spatial grid
+        for (Boid b : boids) {
+            int sc = (int) (b.position.x / spatialCellSize);
+            int sr = (int) (b.position.y / spatialCellSize);
+
+            // Keep within bounds
+            sc = Math.max(0, Math.min(sc, spatialCols - 1));
+            sr = Math.max(0, Math.min(sr, spatialRows - 1));
+
+            spatialGrid[sc][sr].add(b);
+        }
+
+        // 3. Update the boids using the spatial grid
+        for (int i = boids.size()-1; i>=0; i--) {
+            Boid b = boids.get(i);
+
+            b.flock(spatialGrid, spatialCellSize, 1.5, 1.0, 1.0); 
+            b.avoid(new Vector(Sandbox_Game.currentMouseX, Sandbox_Game.currentMouseY), 75.0);
+
+            boolean isDead = b.interactWithEnvironment(grid, cellSize, cols, rows);
+            if (isDead){
+                boids.remove(i);
+                continue;
+            }
+
+            b.update();
+            b.checkEdges(width, height);
+        }
     }
     
 }   // end of Boid class
