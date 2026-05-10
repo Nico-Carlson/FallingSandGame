@@ -244,40 +244,77 @@ class Boid {
         this.applyForce(coh);
     }
     
+    // Helper method to keep the if-statements clean
+    private boolean isSolid(Sandbox_Game.Element e) {
+        return e == Sandbox_Game.Element.SAND || e == Sandbox_Game.Element.OBSIDIAN ||
+               e == Sandbox_Game.Element.PLANT || e == Sandbox_Game.Element.SEED || 
+               e == Sandbox_Game.Element.OIL; 
+    }
+
+    // Helper method for lethal blocks
+    private boolean isLethal(Sandbox_Game.Element e) {
+        return e == Sandbox_Game.Element.LAVA || e == Sandbox_Game.Element.FIRE;
+    }
+
     public boolean interactWithEnvironment(Sandbox_Game.Element[][] grid, int cellSize, int cols, int rows) {
-        // Project future position based on velocity to detect collisions before moving into them
+        int currentGridX = (int) (this.position.x / cellSize);
+        int currentGridY = (int) (this.position.y / cellSize);
+
+        // --- 1. ESCAPE MECHANIC (For falling sand) ---
+        // If a solid block fell onto the boid's current position, push it out
+        if (currentGridX >= 0 && currentGridX < cols && currentGridY >= 0 && currentGridY < rows) {
+            if (isSolid(grid[currentGridX][currentGridY])) {
+                // Push the boid up to simulate it crawling out of the sand
+                this.position.y -= cellSize; 
+                this.velocity.y = -Math.abs(this.velocity.y); // Force velocity upward
+                
+                // Add a small horizontal scramble so they don't stack perfectly vertical
+                this.velocity.x += (RNG.nextDouble() - 0.5) * 4; 
+            }
+        }
+
+        // --- 2. PREDICTIVE COLLISION (Dodging walls) ---
+        // Look at where the boid wants to go next frame
         int nextGridX = (int) ((this.position.x + this.velocity.x) / cellSize);
         int nextGridY = (int) ((this.position.y + this.velocity.y) / cellSize);
 
-        // Ensure the projected coordinates are within the grid boundaries
-        if (nextGridX >= 0 && nextGridX < cols && nextGridY >= 0 && nextGridY < rows) {
-            Sandbox_Game.Element nextCell = grid[nextGridX][nextGridY];
-
-            // Lethal collision: Boid dies and creates smoke
-            if (nextCell == Sandbox_Game.Element.LAVA || nextCell == Sandbox_Game.Element.FIRE) {
-                grid[nextGridX][nextGridY] = Sandbox_Game.Element.SMOKE;
-                return true; // Returns true to signal the main loop to remove this boid
+        if (nextGridX > 0 && nextGridX < cols-1 && nextGridY > 0 && nextGridY < rows-1) {
+            
+            // Check lethal blocks
+            if (isLethal(grid[nextGridX][nextGridY])) {
+                grid[currentGridX][currentGridY] = Sandbox_Game.Element.SMOKE;
+                return true; // Boid dies
             }
 
-            // Solid collision: Bounce off
-            if (nextCell == Sandbox_Game.Element.SAND || nextCell == Sandbox_Game.Element.OBSIDIAN ||
-                nextCell == Sandbox_Game.Element.PLANT || nextCell == Sandbox_Game.Element.SEED || 
-                nextCell == Sandbox_Game.Element.OIL) {
+            boolean hitWall = false;
 
-                int currentGridX = (int) (this.position.x / cellSize);
-                int currentGridY = (int) (this.position.y / cellSize);
+            // Split-axis checking: Check X and Y independently to allow sliding along walls
+            // Check X axis
+            if (isSolid(grid[nextGridX][currentGridY])) {
+                this.velocity.x *= -1.2; // Bounce and amplify slightly to escape
+                hitWall = true;
+            }
 
-                // Reverse the velocity axis that caused the collision
-                if (nextGridX != currentGridX) this.velocity.x *= -1;
-                if (nextGridY != currentGridY) this.velocity.y *= -1;
+            // Check Y axis
+            if (isSolid(grid[currentGridX][nextGridY])) {
+                this.velocity.y *= -1.2;
+                hitWall = true;
+            }
 
-                // Apply a small randomized deflection to prevent them from getting stuck in perfect horizontal/vertical bounces
-                this.velocity.x += (RNG.nextDouble() - 0.5);
-                this.velocity.y += (RNG.nextDouble() - 0.5);
+            // Check strict diagonal corner if neither straight axis was hit
+            if (!hitWall && isSolid(grid[nextGridX][nextGridY])) {
+                this.velocity.x *= -1.2;
+                this.velocity.y *= -1.2;
+                hitWall = true;
+            }
+            
+            // Re-enforce speed limit in case the bounce amplified it too much
+            if (hitWall) {
+                this.velocity.limit(this.maxSpeed);
             }
         }
         
-        return false; // Returns false if the boid survives the frame
+        return false;
     }
     
 }   // end of Boid class
