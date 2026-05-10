@@ -28,7 +28,8 @@ import java.util.List;
 public class Sandbox_Game extends JPanel {
 
     public enum Element {
-        EMPTY, SAND, WATER, LAVA, OBSIDIAN, STEAM, SEED, PLANT, OIL, FIRE, SMOKE, BOID
+        EMPTY, SAND, WATER, LAVA, OBSIDIAN, STEAM,
+        SEED, PLANT, OIL, FIRE, SMOKE, BOID, CONWAY
     }
     
     // static instance for toolbar access
@@ -43,6 +44,11 @@ public class Sandbox_Game extends JPanel {
 
     // array for the grid
     public static Element[][] grid;
+    
+    // next array to hold GoL future states
+    public static Element[][] nextGrid;
+    public static int tickCounter = 0;
+    public static int conwaySpeed = 5; // since GoL loads the next array much faster this is used to slow it down
     
     // array to save / load 
     public static Element[][] savedGrid;
@@ -75,8 +81,8 @@ public class Sandbox_Game extends JPanel {
 
     // mouse variables
     public boolean isMouseHeld = false;
-    public int currentMouseX = 0;
-    public int currentMouseY = 0;
+    public static int currentMouseX = 0;
+    public static int currentMouseY = 0;
     
     public int mouseX = currentMouseX;
     public int mouseY = currentMouseY;
@@ -98,8 +104,10 @@ public class Sandbox_Game extends JPanel {
     // selected element
     public static Element currentElement = Element.SAND; // default for sand
     
-    // set up the physics engine class
+    // set up the physics engine classes
     public PhysicsEngine engine;
+    public Boid boidEngine;
+    public Conway conwayEngine;
     
     
     
@@ -189,6 +197,8 @@ public class Sandbox_Game extends JPanel {
         
         // set up the physics engine
         engine = new PhysicsEngine(cols, rows);
+        boidEngine = new Boid();
+        conwayEngine = new Conway();
         
         
 
@@ -197,6 +207,14 @@ public class Sandbox_Game extends JPanel {
         for (int c = 0; c < cols; c++) {
             for (int r = 0; r < rows; r++) {
                 grid[c][r] = Element.EMPTY;
+            }
+        }
+        
+        // setup the nextGrid
+        nextGrid = new Element[cols][rows];
+        for (int c = 0; c < cols; c++) {
+            for (int r = 0; r < rows; r++) {
+                nextGrid[c][r] = Element.EMPTY;
             }
         }
         
@@ -237,42 +255,13 @@ public class Sandbox_Game extends JPanel {
             // if not paused
             if (!isPaused) {
                 engine.updatePhysics();
+                boidEngine.paintBoids();
                 
-                // 1. Clear the spatial grid
-                for (int c = 0; c < spatialCols; c++) {
-                    for (int r = 0; r < spatialRows; r++) {
-                        spatialGrid[c][r].clear();
-                    }
+                // slow down conway since its not a cell at a time but a grid at a time
+                if(tickCounter % conwaySpeed == 0){
+                    conwayEngine.updateConway(rows, cols, grid, nextGrid);
                 }
-
-                // 2. Populate the spatial grid
-                for (Boid b : boids) {
-                    int sc = (int) (b.position.x / spatialCellSize);
-                    int sr = (int) (b.position.y / spatialCellSize);
-
-                    // Keep within bounds
-                    sc = Math.max(0, Math.min(sc, spatialCols - 1));
-                    sr = Math.max(0, Math.min(sr, spatialRows - 1));
-
-                    spatialGrid[sc][sr].add(b);
-                }
-
-                // 3. Update the boids using the spatial grid
-                for (int i = boids.size()-1; i>=0; i--) {
-                    Boid b = boids.get(i);
-                    
-                    b.flock(spatialGrid, spatialCellSize, 1.5, 1.0, 1.0); 
-                    b.avoid(new Vector(currentMouseX, currentMouseY), 75.0);
-                    b.update();
-                    
-                    boolean isDead = b.interactWithEnvironment(grid, cellSize, cols, rows);
-                    if (isDead){
-                        boids.remove(i);
-                        continue;
-                    }
-                    
-                    b.checkEdges(width, height);
-                }
+                tickCounter ++;
             }
 
             repaint();
@@ -340,6 +329,10 @@ public class Sandbox_Game extends JPanel {
                     }
                     case PLANT -> {
                         g.setColor(Color.green.darker().darker());
+                        g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    }
+                    case CONWAY -> {
+                        g.setColor(Color.white.darker().darker());
                         g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
                     }
                     default -> {
@@ -415,6 +408,7 @@ public class Sandbox_Game extends JPanel {
         if (newCols <= 0 || newRows <= 0) return;
 
         Element[][] newGrid = new Element[newCols][newRows];
+        Element[][] newNextGrid = new Element[newCols][newRows];
         Element[][] newSavedGrid = new Element[newCols][newRows];
         
         int shiftX = 0;
@@ -435,8 +429,8 @@ public class Sandbox_Game extends JPanel {
         
         // Cache the physical array dimensions to prevent rapid-event desyncs
         int gridWidth = grid != null ? grid.length : 0;
-        int gridHeight = (gridWidth > 0 && grid[0] != null) ? grid[0].length : 0;
-        
+        int gridHeight = (gridWidth > 0 && grid[0] != null) ? grid[0].length : 0; 
+       
         int savedWidth = savedGrid != null ? savedGrid.length : 0;
         int savedHeight = (savedWidth > 0 && savedGrid[0] != null) ? savedGrid[0].length : 0;
 
@@ -453,21 +447,25 @@ public class Sandbox_Game extends JPanel {
                     newGrid[x][y] = Element.EMPTY;
                 }
                 
-                // Keep savedGrid strictly synchronized
+                // keep savedGrid synchronized
                 if (oldX >= 0 && oldX < savedWidth && oldY >= 0 && oldY < savedHeight && savedGrid[oldX][oldY] != null) {
                     newSavedGrid[x][y] = savedGrid[oldX][oldY];
                 } else {
                     newSavedGrid[x][y] = Element.EMPTY;
                 }
+                
+                // update nextGrid (can just be set to empty)
+                newNextGrid[x][y] = Element.EMPTY;
             }
         }
 
         // safely overwrite the old arrays and dimension variables
         grid = newGrid;
         savedGrid = newSavedGrid;
+        nextGrid = newNextGrid;
         cols = newCols;
         rows = newRows;
-    }
+    }   // end of resize grid
     
     
     // function to interpolate between mouse movements (Bressenhams line alg)
@@ -542,11 +540,12 @@ public class Sandbox_Game extends JPanel {
                     // account for bounds
                     if (targetX >= 0 && targetX < cols && targetY >= 0 && targetY < rows) {
                         
+                        // spawn boids
                         if (currentElement == Element.BOID){
-                            if(RNG.nextInt(10) == 0) {
-                                boids.add(new Boid(targetX * cellSize, targetY * cellSize));
-                            }
-                        } else {
+                            boids.add(new Boid(targetX * cellSize, targetY * cellSize));
+                        }
+                        // spawn regular elements
+                        else {
                             grid[targetX][targetY] = currentElement;
                         }
 

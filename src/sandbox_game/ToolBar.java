@@ -30,6 +30,8 @@ import static sandbox_game.Sandbox_Game.timer;
 
 public class ToolBar extends JPanel {
 
+    // to sync with wheel listener
+    public static JSlider zoomButton; 
     
     public ToolBar() {
         
@@ -46,35 +48,55 @@ public class ToolBar extends JPanel {
         
         // sand 
         JToggleButton sandButton = new JToggleButton();
-        setupToggleButtons(sandButton, "Sand", 0, Sandbox_Game.Element.SAND, elements);
+        setupToggleButtons(sandButton, "Sand", Sandbox_Game.Element.SAND, elements);
 
         // water 
         JToggleButton waterButton = new JToggleButton();
-        setupToggleButtons(waterButton, "Water", 1, Sandbox_Game.Element.WATER, elements);
+        setupToggleButtons(waterButton, "Water", Sandbox_Game.Element.WATER, elements);
 
         // lava 
         JToggleButton lavaButton = new JToggleButton();
-        setupToggleButtons(lavaButton, "Lava", 2, Sandbox_Game.Element.LAVA, elements);
+        setupToggleButtons(lavaButton, "Lava", Sandbox_Game.Element.LAVA, elements);
 
         // obsidian 
         JToggleButton obsidianButton = new JToggleButton();
-        setupToggleButtons(obsidianButton, "Obsidian", 3, Sandbox_Game.Element.OBSIDIAN, elements);
+        setupToggleButtons(obsidianButton, "Obsidian", Sandbox_Game.Element.OBSIDIAN, elements);
+        
+        // oil 
+        JToggleButton oilButton = new JToggleButton();
+        setupToggleButtons(oilButton, "Oil", Sandbox_Game.Element.OIL, elements);
 
         // seed 
         JToggleButton seedButton = new JToggleButton();
-        setupToggleButtons(seedButton, "Seed", 4, Sandbox_Game.Element.SEED, elements);
+        setupToggleButtons(seedButton, "Seed", Sandbox_Game.Element.SEED, elements);
 
         // plant 
         JToggleButton plantButton = new JToggleButton();
-        setupToggleButtons(plantButton, "Plant", 5, Sandbox_Game.Element.PLANT, elements);
+        setupToggleButtons(plantButton, "Plant", Sandbox_Game.Element.PLANT, elements);
         
         // steam 
         JToggleButton steamButton = new JToggleButton();
-        setupToggleButtons(steamButton, "Steam", 6, Sandbox_Game.Element.STEAM, elements);
+        setupToggleButtons(steamButton, "Steam", Sandbox_Game.Element.STEAM, elements);
+        
+        // fire 
+        JToggleButton fireButton = new JToggleButton();
+        setupToggleButtons(fireButton, "Fire", Sandbox_Game.Element.FIRE, elements);
+        
+        // smoke 
+        JToggleButton smokeButton = new JToggleButton();
+        setupToggleButtons(smokeButton, "Smoke", Sandbox_Game.Element.SMOKE, elements);
+        
+        // boid
+        JToggleButton boidButton = new JToggleButton();
+        setupToggleButtons(boidButton, "Boid", Sandbox_Game.Element.BOID, elements);
+        
+        // conway
+        JToggleButton conwayButton = new JToggleButton();
+        setupToggleButtons(conwayButton, "Conway", Sandbox_Game.Element.CONWAY, elements);
 
         // eraser 
         JToggleButton eraserButton = new JToggleButton();
-        setupToggleButtons(eraserButton, "Eraser", 7, Sandbox_Game.Element.EMPTY, elements);
+        setupToggleButtons(eraserButton, "Eraser", Sandbox_Game.Element.EMPTY, elements);
 
         
         // -------- slider buttons --------
@@ -93,6 +115,16 @@ public class ToolBar extends JPanel {
             timer.setDelay(frameRate);
         });
         
+        // "zoom"
+        zoomButton = setupSliderButtons(2, 25, Sandbox_Game.cellSize, "Zoom", 2);
+        
+        zoomButton.addChangeListener(e -> {
+            // Ensure the panel is initialized before attempting to resize
+            if (Sandbox_Game.gamePanel != null) {
+                Sandbox_Game.gamePanel.resizeGrid(zoomButton.getValue(), true);
+            }
+        });
+        
         
         // -------- "standard" buttons --------
         // reset 
@@ -103,7 +135,7 @@ public class ToolBar extends JPanel {
                     grid[c][r] = Sandbox_Game.Element.EMPTY;
                 }
             }
-
+            Sandbox_Game.boids.clear();
             frame.repaint();
         });
 
@@ -153,7 +185,7 @@ public class ToolBar extends JPanel {
         return bttn;
     }
     
-    public void setupToggleButtons(JToggleButton bttn, String title, int bttnpos, Sandbox_Game.Element type, ButtonGroup elements){
+    public void setupToggleButtons(JToggleButton bttn, String title, Sandbox_Game.Element type, ButtonGroup elements){
         bttn = new JToggleButton(title);
         bttn.setPreferredSize(new Dimension(bttnWidth, bttnHeight));
         bttn.setBackground(Color.gray);
