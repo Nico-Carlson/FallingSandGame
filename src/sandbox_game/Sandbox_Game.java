@@ -20,14 +20,19 @@ import javax.swing.JPanel;
 import javax.swing.Timer;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.util.ArrayList;
+import java.util.List;
 
 
 // --------- Main Class -----------
 public class Sandbox_Game extends JPanel {
 
     public enum Element {
-        EMPTY, SAND, WATER, LAVA, OBSIDIAN, STEAM, SEED, PLANT
+        EMPTY, SAND, WATER, LAVA, OBSIDIAN, STEAM, SEED, PLANT, OIL, FIRE, SMOKE, BOID
     }
+    
+    // static instance for toolbar access
+    public static Sandbox_Game gamePanel;
 
     // main variable initializing
     public static int cellSize = 5;
@@ -41,6 +46,14 @@ public class Sandbox_Game extends JPanel {
     
     // array to save / load 
     public static Element[][] savedGrid;
+    
+    // array list for boids
+    public static List<Boid> boids = new ArrayList<>();
+    public static final int spatialCellSize = 50; // Matches neighborRadius
+    public static int spatialCols = width / spatialCellSize + 1;
+    public static int spatialRows = height / spatialCellSize + 1;
+    public static ArrayList<Boid>[][] spatialGrid;
+    
     
     // setting timer
     public static Timer timer;
@@ -64,6 +77,13 @@ public class Sandbox_Game extends JPanel {
     public boolean isMouseHeld = false;
     public int currentMouseX = 0;
     public int currentMouseY = 0;
+    
+    public int mouseX = currentMouseX;
+    public int mouseY = currentMouseY;
+    
+    public int lastMouseX = mouseX;
+    public int lastMouseY = mouseY;
+
 
     // brush size
     public static int brushSize = 6;
@@ -80,6 +100,11 @@ public class Sandbox_Game extends JPanel {
     
     // set up the physics engine class
     public PhysicsEngine engine;
+    
+    
+    
+    
+   
 
     // constructor
     public Sandbox_Game() {
@@ -103,6 +128,12 @@ public class Sandbox_Game extends JPanel {
                 isMouseHeld = true;
                 currentMouseX = e.getX();
                 currentMouseY = e.getY();
+                
+                // Sync positions to prevent drawing a line from a previous click
+                mouseX = currentMouseX;
+                mouseY = currentMouseY;
+                lastMouseX = currentMouseX;
+                lastMouseY = currentMouseY;
             }
 
             @Override
@@ -121,49 +152,44 @@ public class Sandbox_Game extends JPanel {
         this.addMouseMotionListener(mouseHandler);
         
         
+        this.addMouseWheelListener(e -> {
+            int scrollAmount = e.getWheelRotation();
+            int newCellSize = cellSize;
+
+            // e.getWheelRotation() returns negative for scrolling up, positive for down
+            if (scrollAmount < 0) {
+                newCellSize++; // Zoom in
+            } else {
+                newCellSize--; // Zoom out
+            }
+
+            // Clamp the value to match slider bounds (min 2, max 25)
+            if (newCellSize < 2) newCellSize = 2;
+            if (newCellSize > 25) newCellSize = 25;
+
+            // Update the grid if the size changed
+            if (newCellSize != cellSize) {
+                resizeGrid(newCellSize, true);
+                
+                // sync the UI slider if you make zoomButton static in ToolBar
+                if (ToolBar.zoomButton != null) {
+                    ToolBar.zoomButton.setValue(newCellSize);
+                }
+            }
+        });
+        
+        
         // listen for window resize events
         this.addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
-                
-                // calculate new grid dimensions based on new panel size
-                int newCols = getWidth() / cellSize;
-                int newRows = getHeight() / cellSize;
-                
-                // prevent crash if window is minimized entirely
-                if (newCols <= 0 || newRows <= 0) return;
-
-                // create temporary arrays with the new dimensions
-                Element[][] newGrid = new Element[newCols][newRows];
-                Element[][] newSavedGrid = new Element[newCols][newRows];
-
-                // loop through the new array dimensions
-                for (int x = 0; x < newCols; x++) {
-                    for (int y = 0; y < newRows; y++) {
-                        
-                        // if the coordinate exists in the old grid, copy the element over
-                        if (x < cols && y < rows && grid[x][y] != null) {
-                            newGrid[x][y] = grid[x][y];
-                            newSavedGrid[x][y] = savedGrid[x][y];
-                        } 
-                        // if it is new empty space created by stretching the window, set to EMPTY
-                        else {
-                            newGrid[x][y] = Element.EMPTY;
-                            newSavedGrid[x][y] = Element.EMPTY;
-                        }
-                    }
-                }
-
-                // safely overwrite the old arrays and dimension variables
-                grid = newGrid;
-                savedGrid = newSavedGrid;
-                cols = newCols;
-                rows = newRows;
+                resizeGrid(cellSize, false);                
             }
         });
         
         // set up the physics engine
         engine = new PhysicsEngine(cols, rows);
+        
         
 
         // setup the grid
@@ -181,18 +207,72 @@ public class Sandbox_Game extends JPanel {
                 savedGrid[c][r] = Element.EMPTY;
             }
         }
+        
+        // Setup the spatial grid
+        spatialGrid = new ArrayList[spatialCols][spatialRows];
+        for (int c = 0; c < spatialCols; c++) {
+            for (int r = 0; r < spatialRows; r++) {
+                spatialGrid[c][r] = new ArrayList<Boid>();
+            }
+        }
 
         // setting the timer (16 is about 60 fps
         timer = new Timer(frameRate, e -> {
 
             // if mouse is down spawn element
             if (isMouseHeld) {
-                spawnElement(currentMouseX, currentMouseY);
+                lastMouseX = mouseX;
+                lastMouseY = mouseY;
+                
+                mouseX = currentMouseX;
+                mouseY = currentMouseY;
+                
+                
+//                spawnElement(currentMouseX, currentMouseY);
+
+                // Interpolate from the last frame's position to the current position
+                spawnLine(lastMouseX, lastMouseY, mouseX, mouseY);
             }
 
             // if not paused
             if (!isPaused) {
                 engine.updatePhysics();
+                
+                // 1. Clear the spatial grid
+                for (int c = 0; c < spatialCols; c++) {
+                    for (int r = 0; r < spatialRows; r++) {
+                        spatialGrid[c][r].clear();
+                    }
+                }
+
+                // 2. Populate the spatial grid
+                for (Boid b : boids) {
+                    int sc = (int) (b.position.x / spatialCellSize);
+                    int sr = (int) (b.position.y / spatialCellSize);
+
+                    // Keep within bounds
+                    sc = Math.max(0, Math.min(sc, spatialCols - 1));
+                    sr = Math.max(0, Math.min(sr, spatialRows - 1));
+
+                    spatialGrid[sc][sr].add(b);
+                }
+
+                // 3. Update the boids using the spatial grid
+                for (int i = boids.size()-1; i>=0; i--) {
+                    Boid b = boids.get(i);
+                    
+                    b.flock(spatialGrid, spatialCellSize, 1.5, 1.0, 1.0); 
+                    b.avoid(new Vector(currentMouseX, currentMouseY), 75.0);
+                    b.update();
+                    
+                    boolean isDead = b.interactWithEnvironment(grid, cellSize, cols, rows);
+                    if (isDead){
+                        boids.remove(i);
+                        continue;
+                    }
+                    
+                    b.checkEdges(width, height);
+                }
             }
 
             repaint();
@@ -226,8 +306,24 @@ public class Sandbox_Game extends JPanel {
                         g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
                     }
                     case LAVA -> {
-                        // red for water
+                        // red for lava
                         g.setColor(new Color(0xE42217));
+                        g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    }
+                    case FIRE -> {
+                        int flicker = RNG.nextInt(2);
+                        if (flicker == 0) g.setColor(new Color(0xFF9A00));
+                        else if (flicker == 1) g.setColor(new Color(0xFF5A00));
+                        else g.setColor(new Color(0xD92500));
+                        g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    }
+                    case SMOKE -> {
+                        g.setColor(new Color(0x1A1A1A));
+                        g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    }
+                    case OIL -> {
+                        // black for oil
+                        g.setColor(new Color(0x2C2519));
                         g.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
                     }
                     case OBSIDIAN -> {
@@ -248,9 +344,17 @@ public class Sandbox_Game extends JPanel {
                     }
                     default -> {
                     }
+                    
                 }
+                
 
             }
+        }
+        
+        // paint the boids
+        g.setColor(Color.WHITE);
+        for (Boid b : boids) {
+            g.fillRect((int) b.position.x, (int) b.position.y, cellSize, cellSize);
         }
 
         // highlight cursor
@@ -296,6 +400,118 @@ public class Sandbox_Game extends JPanel {
     }   // end of paint component
     
     
+    // method to resize cells "zoom"
+    // Recalculate grid based on current panel dimensions and cell size
+    public void resizeGrid(int newCellSize, boolean isZoomEvent) {
+        if (newCellSize <= 0) return;
+        
+        int oldCellSize = cellSize;
+        cellSize = newCellSize;
+        
+        int newCols = getWidth() / cellSize;
+        int newRows = getHeight() / cellSize;
+        
+        // prevent crash if window is minimized entirely
+        if (newCols <= 0 || newRows <= 0) return;
+
+        Element[][] newGrid = new Element[newCols][newRows];
+        Element[][] newSavedGrid = new Element[newCols][newRows];
+        
+        int shiftX = 0;
+        int shiftY = 0;
+        
+        // calculate array shift based on mouse position
+        if (isZoomEvent && oldCellSize != newCellSize) {
+            
+            int targetGridX = currentMouseX / oldCellSize;
+            int targetGridY = currentMouseY / oldCellSize;
+            
+            int newGridX = currentMouseX / newCellSize;
+            int newGridY = currentMouseY / newCellSize;
+            
+            shiftX = newGridX - targetGridX;
+            shiftY = newGridY - targetGridY;            
+        }
+        
+        // Cache the physical array dimensions to prevent rapid-event desyncs
+        int gridWidth = grid != null ? grid.length : 0;
+        int gridHeight = (gridWidth > 0 && grid[0] != null) ? grid[0].length : 0;
+        
+        int savedWidth = savedGrid != null ? savedGrid.length : 0;
+        int savedHeight = (savedWidth > 0 && savedGrid[0] != null) ? savedGrid[0].length : 0;
+
+        for (int x = 0; x < newCols; x++) {
+            for (int y = 0; y < newRows; y++) {
+                
+                // map the new grid coords back to the old grid coords
+                int oldX = x - shiftX;
+                int oldY = y - shiftY;
+                
+                if (oldX >= 0 && oldX < gridWidth && oldY >= 0 && oldY < gridHeight && grid[oldX][oldY] != null) {
+                    newGrid[x][y] = grid[oldX][oldY];
+                } else {
+                    newGrid[x][y] = Element.EMPTY;
+                }
+                
+                // Keep savedGrid strictly synchronized
+                if (oldX >= 0 && oldX < savedWidth && oldY >= 0 && oldY < savedHeight && savedGrid[oldX][oldY] != null) {
+                    newSavedGrid[x][y] = savedGrid[oldX][oldY];
+                } else {
+                    newSavedGrid[x][y] = Element.EMPTY;
+                }
+            }
+        }
+
+        // safely overwrite the old arrays and dimension variables
+        grid = newGrid;
+        savedGrid = newSavedGrid;
+        cols = newCols;
+        rows = newRows;
+    }
+    
+    
+    // function to interpolate between mouse movements (Bressenhams line alg)
+    // http://www.youtube.com/watch?v=CceepU1vIKo
+    // http://www.youtube.com/watch?v=BmowyD0dWeo
+    public void spawnLine(int startX, int startY, int endX, int endY) {
+        int x0 = startX / cellSize;
+        int y0 = startY / cellSize;
+        int x1 = endX / cellSize;
+        int y1 = endY / cellSize;
+
+        int dx = Math.abs(x1 - x0);
+        int dy = Math.abs(y1 - y0);
+        
+        // if first coord is less than second set sx/sy to 1, otherwise set to -1
+        int sx = x0 < x1 ? 1 : -1;
+        int sy = y0 < y1 ? 1 : -1;
+        
+        // find you overall err (to find dist between two points)
+        int err = dx - dy;
+
+        while (true) {
+            
+            spawnElement(x0 * cellSize, y0 * cellSize);
+
+            // exit loop once line is complete
+            if (x0 == x1 && y0 == y1) {
+                break;
+            }
+          
+            int e2 = 2 * err;
+          
+            // update error and move along the line
+            if (e2 > -dy) {
+                err -= dy;
+                x0 += sx;
+            }
+            if (e2 < dx) {
+                err += dx;
+                y0 += sy;
+            }
+        }
+    }
+    
     // function to spawn new element when clicked
     public void spawnElement(int mouseX, int mouseY) {
 
@@ -325,9 +541,14 @@ public class Sandbox_Game extends JPanel {
 
                     // account for bounds
                     if (targetX >= 0 && targetX < cols && targetY >= 0 && targetY < rows) {
-
-                        // spawn sand
-                        grid[targetX][targetY] = currentElement;
+                        
+                        if (currentElement == Element.BOID){
+                            if(RNG.nextInt(10) == 0) {
+                                boids.add(new Boid(targetX * cellSize, targetY * cellSize));
+                            }
+                        } else {
+                            grid[targetX][targetY] = currentElement;
+                        }
 
                     }
                 }
@@ -337,7 +558,7 @@ public class Sandbox_Game extends JPanel {
 
 
     public static void setupFrame(){
-        Sandbox_Game gamePanel = new Sandbox_Game();
+        gamePanel = new Sandbox_Game();
         gamePanel.setPreferredSize(new Dimension(width, height));
 
         ToolBar customToolBar = new ToolBar();
